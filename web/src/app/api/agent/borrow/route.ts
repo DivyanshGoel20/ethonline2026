@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BorrowRequest, BorrowResponse } from "@/types";
-
-// In-memory agent state for local scaffolding & mock fallbacks
-// In full production, this syncs with FloatCreditManager contract on Arc and The Graph
-const MOCK_CREDIT_REGISTRY: Record<string, { creditLimit: number; outstandingDebt: number }> = {
-  "0x2222222222222222222222222222222222222222": { creditLimit: 500, outstandingDebt: 0 },
-  "0x913a80277353f88f8d68bc3eefbb4806a6b878f2": { creditLimit: 500, outstandingDebt: 32 },
-  "0x42f7c02b36a8e809311bc4c80b98024220b2491a": { creditLimit: 350, outstandingDebt: 180 },
-};
+import { getAllAgents, updateAgentInStore } from "@/lib/agentStore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,13 +22,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const normalizedAddress = agentAddress.toLowerCase();
-    const agentProfile = MOCK_CREDIT_REGISTRY[normalizedAddress] || {
-      creditLimit: 250,
-      outstandingDebt: 0,
-    };
+    const all = getAllAgents();
+    const agent = all.find(
+      (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
+    );
 
-    const availableCredit = agentProfile.creditLimit - agentProfile.outstandingDebt;
+    const creditLimit = agent?.creditLimit ?? 500;
+    const currentDebt = agent?.outstandingDebt ?? 0;
+    const availableCredit = Math.max(0, creditLimit - currentDebt);
+
     if (borrowAmount > availableCredit) {
       return NextResponse.json(
         {
@@ -46,9 +41,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update debt
-    agentProfile.outstandingDebt += borrowAmount;
-    MOCK_CREDIT_REGISTRY[normalizedAddress] = agentProfile;
+    const newDebt = currentDebt + borrowAmount;
+    const totalBorrowed = (agent?.totalBorrowed ?? 0) + borrowAmount;
+    const currentBalance = (agent?.currentBalance ?? 0) + borrowAmount;
+
+    updateAgentInStore(agentAddress, {
+      outstandingDebt: newDebt,
+      totalBorrowed,
+      currentBalance,
+      status: "Active",
+    });
 
     const mockTxHash = `0xarc${Array.from({ length: 60 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
 
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
       success: true,
       txHash: mockTxHash,
       amount: borrowAmount,
-      newOutstandingDebt: agentProfile.outstandingDebt,
+      newOutstandingDebt: newDebt,
       agentAddress,
     };
 

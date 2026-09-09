@@ -49,12 +49,15 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
                       ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
                       : item.type === "repay"
                       ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : item.type === "remove"
+                      ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
                       : "bg-zinc-800 text-zinc-300 border border-white/[0.06]"
                   }`}
                 >
                   {item.type === "borrow" && <ArrowDownLeft className="w-3.5 h-3.5" />}
                   {item.type === "repay" && <ArrowUpRight className="w-3.5 h-3.5" />}
                   {item.type === "register" && <Plus className="w-3.5 h-3.5" />}
+                  {item.type === "remove" && <span className="text-xs">✕</span>}
                 </div>
 
                 <div>

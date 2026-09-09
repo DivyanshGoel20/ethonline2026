@@ -2,18 +2,20 @@
 
 import React, { useState } from "react";
 import { Agent } from "@/types";
-import { Copy, Check, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Copy, Check, ArrowDownLeft, ArrowUpRight, ShieldCheck, Trash2 } from "lucide-react";
 
 interface AgentCardProps {
   agent: Agent;
   onOpenBorrow: (agent: Agent) => void;
   onOpenRepay: (agent: Agent) => void;
+  onRemoveAgent?: (agent: Agent) => void;
 }
 
 export const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   onOpenBorrow,
   onOpenRepay,
+  onRemoveAgent,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -44,21 +46,30 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               </span>
             </div>
 
-            {/* Address */}
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1 mt-1 text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition"
-              title="Click to copy full address"
-            >
-              <span>
-                {agent.address.slice(0, 6)}...{agent.address.slice(-4)}
+            {/* Network & Address */}
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-1 text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition"
+                title="Click to copy full address"
+              >
+                <span>
+                  {agent.address.slice(0, 6)}...{agent.address.slice(-4)}
+                </span>
+                {copied ? (
+                  <Check className="w-3 h-3 text-emerald-400" />
+                ) : (
+                  <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                )}
+              </button>
+
+              <span className="text-zinc-700 font-mono text-[10px]">•</span>
+
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400/80">
+                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                Arc Testnet
               </span>
-              {copied ? (
-                <Check className="w-3 h-3 text-emerald-400" />
-              ) : (
-                <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-              )}
-            </button>
+            </div>
           </div>
 
           <div className="text-right">
@@ -88,7 +99,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
         {/* Financial Metrics Grid */}
         <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-zinc-900/60 border border-white/[0.04] mb-4 text-xs font-mono">
           <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Debt</div>
+            <div className="text-zinc-500 text-[10px] uppercase">Drawn Debt</div>
             <div className={`font-medium tabular-nums mt-0.5 ${agent.outstandingDebt > 0 ? "text-zinc-200" : "text-zinc-400"}`}>
               ${agent.outstandingDebt.toFixed(2)}
             </div>
@@ -132,6 +143,16 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           <ArrowUpRight className="w-3.5 h-3.5" />
           <span>Repay</span>
         </button>
+
+        {onRemoveAgent && (
+          <button
+            onClick={() => onRemoveAgent(agent)}
+            className="p-1.5 rounded-lg bg-zinc-900/80 hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 border border-white/[0.06] hover:border-rose-500/20 transition"
+            title="Remove / Disconnect Agent"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

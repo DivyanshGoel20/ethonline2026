@@ -1,7 +1,12 @@
 export interface Agent {
+  agentId?: string;
   address: `0x${string}`;
   name: string;
-  humanOwner: `0x${string}`;
+  humanOwner: string;
+  network?: string;
+  purpose?: string;
+  apiKey?: string;
+  isPlatformCreated?: boolean;
   creditLimit: number;       // in USDC
   outstandingDebt: number;   // in USDC
   totalBorrowed: number;     // in USDC
@@ -22,7 +27,7 @@ export interface CreditStats {
 
 export interface ActivityItem {
   id: string;
-  type: "borrow" | "repay" | "register";
+  type: "borrow" | "repay" | "register" | "remove";
   agentName: string;
   agentAddress: string;
   amount?: number;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RepayRequest, RepayResponse } from "@/types";
+import { getAllAgents, updateAgentInStore } from "@/lib/agentStore";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,13 +22,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const all = getAllAgents();
+    const agent = all.find(
+      (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
+    );
+
+    const currentDebt = agent?.outstandingDebt ?? 0;
+    const newDebt = Math.max(0, currentDebt - repayAmount);
+    const totalRepaid = (agent?.totalRepaid ?? 0) + repayAmount;
+
+    updateAgentInStore(agentAddress, {
+      outstandingDebt: newDebt,
+      totalRepaid,
+      status: newDebt === 0 ? "Healthy" : "Active",
+    });
+
     const mockTxHash = `0xarc${Array.from({ length: 60 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
 
     const response: RepayResponse = {
       success: true,
       txHash: mockTxHash,
       amount: repayAmount,
-      remainingDebt: 0, // Settled
+      remainingDebt: newDebt,
       agentAddress,
     };
 

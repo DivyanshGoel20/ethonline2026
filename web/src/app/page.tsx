@@ -7,11 +7,12 @@ import { AgentCard } from "@/components/AgentCard";
 import { BorrowModal } from "@/components/BorrowModal";
 import { RepayModal } from "@/components/RepayModal";
 import { AddAgentModal } from "@/components/AddAgentModal";
+import { RemoveAgentModal } from "@/components/RemoveAgentModal";
 import { ApiModal } from "@/components/ApiModal";
 import { WorldAuthGate } from "@/components/WorldAuthGate";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Agent, CreditStats as CreditStatsType, ActivityItem } from "@/types";
-import { Search, LayoutGrid, List, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Search, LayoutGrid, List, Plus, Bot, ShieldCheck, Trash2 } from "lucide-react";
 
 export default function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -27,40 +28,14 @@ export default function Dashboard() {
   // Modals state
   const [selectedBorrowAgent, setSelectedBorrowAgent] = useState<Agent | null>(null);
   const [selectedRepayAgent, setSelectedRepayAgent] = useState<Agent | null>(null);
+  const [selectedRemoveAgent, setSelectedRemoveAgent] = useState<Agent | null>(null);
   const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
   const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
 
   // Live Activity Log
-  const [activities, setActivities] = useState<ActivityItem[]>([
-    {
-      id: "act-1",
-      type: "repay",
-      agentName: "Research Agent",
-      agentAddress: "0x913a80277353f88f8d68bc3eefbb4806a6b878f2",
-      amount: 40,
-      timestamp: Date.now() - 1000 * 60 * 12,
-      txHash: "0xarc_repay_01",
-    },
-    {
-      id: "act-2",
-      type: "borrow",
-      agentName: "Procurement Agent",
-      agentAddress: "0x42f7c02b36a8e809311bc4c80b98024220b2491a",
-      amount: 180,
-      timestamp: Date.now() - 1000 * 60 * 45,
-      txHash: "0xarc_borrow_02",
-    },
-    {
-      id: "act-3",
-      type: "register",
-      agentName: "x402 Market Agent",
-      agentAddress: "0x2222222222222222222222222222222222222222",
-      timestamp: Date.now() - 1000 * 60 * 180,
-      txHash: "0xarc_reg_03",
-    },
-  ]);
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
 
-  // Subtle toast feedback
+  // Toast feedback
   const [toast, setToast] = useState<{ message: string; type: "success" | "neutral" } | null>(null);
 
   const showToast = (message: string, type: "success" | "neutral" = "success") => {
@@ -77,13 +52,15 @@ export default function Dashboard() {
     }
     setIsLoadingSession(false);
 
-    // Fetch initial agents
+    // Fetch real agents from store
     fetch("/api/agents")
       .then((res) => res.json())
       .then((data) => {
-        if (data.agents) setAgents(data.agents);
+        if (data.agents && Array.isArray(data.agents)) {
+          setAgents(data.agents);
+        }
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error("[Dashboard] Error fetching agents:", err));
   }, []);
 
   // Aggregate stats calculations
@@ -160,7 +137,7 @@ export default function Dashboard() {
       ...prev,
     ]);
 
-    showToast(`Drawn $${amount.toFixed(2)} USDC for ${targetAgent?.name || "Agent"}`);
+    showToast(`Drawn $${amount.toFixed(2)} USDC on Arc for ${targetAgent?.name || "Agent"}`);
   };
 
   // Handle Repay
@@ -208,9 +185,18 @@ export default function Dashboard() {
     showToast(`Settled $${amount.toFixed(2)} USDC repayment for ${targetAgent?.name || "Agent"}`);
   };
 
-  // Handle Add Agent
+  // Handle Agent Added
   const handleAgentAdded = (newAgent: Agent) => {
-    setAgents((prev) => [newAgent, ...prev]);
+    setAgents((prev) => {
+      const exists = prev.some((a) => a.address.toLowerCase() === newAgent.address.toLowerCase());
+      if (exists) {
+        return prev.map((a) =>
+          a.address.toLowerCase() === newAgent.address.toLowerCase() ? newAgent : a
+        );
+      }
+      return [newAgent, ...prev];
+    });
+
     setActivities((prev) => [
       {
         id: `act-${Date.now()}`,
@@ -222,7 +208,42 @@ export default function Dashboard() {
       },
       ...prev,
     ]);
-    showToast(`Provisioned facility for ${newAgent.name}`);
+
+    showToast(`Added ${newAgent.name} to Arc credit facility`);
+  };
+
+  // Handle Agent Removed / Disconnected
+  const handleConfirmRemove = async (agentAddress: string) => {
+    const res = await fetch(`/api/agents?address=${encodeURIComponent(agentAddress)}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Failed to disconnect agent");
+    }
+
+    const targetAgent = agents.find(
+      (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
+    );
+
+    setAgents((prev) =>
+      prev.filter((a) => a.address.toLowerCase() !== agentAddress.toLowerCase())
+    );
+
+    setActivities((prev) => [
+      {
+        id: `act-${Date.now()}`,
+        type: "remove",
+        agentName: targetAgent?.name || "Agent",
+        agentAddress,
+        timestamp: Date.now(),
+        txHash: "0xarc_disconnect",
+      },
+      ...prev,
+    ]);
+
+    showToast(`Disconnected ${targetAgent?.name || "Agent"} from credit facility`);
   };
 
   // Handle World Verification Passed
@@ -230,17 +251,6 @@ export default function Dashboard() {
     localStorage.setItem("float_world_session", hash);
     setIsWorldVerified(true);
     setNullifierHash(hash);
-    setActivities((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        type: "register",
-        agentName: "World Selfie Check",
-        agentAddress: hash,
-        timestamp: Date.now(),
-        txHash: "0xworld_selfie_liveness_verified",
-      },
-      ...prev,
-    ]);
     showToast("Human operator verified via World Selfie Check");
   };
 
@@ -278,9 +288,9 @@ export default function Dashboard() {
         activeAgentsCount={agents.length}
       />
 
-      {/* Subtle toast */}
+      {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 py-2 px-3.5 rounded-lg bg-[#16161c] border border-white/[0.1] text-zinc-200 text-xs font-mono shadow-2xl flex items-center gap-2">
+        <div className="fixed bottom-6 right-6 z-50 py-2.5 px-4 rounded-xl bg-[#16161c] border border-white/[0.1] text-zinc-200 text-xs font-mono shadow-2xl flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
           <span>{toast.message}</span>
         </div>
@@ -292,87 +302,140 @@ export default function Dashboard() {
           <CreditStats stats={stats} />
         </section>
 
+        {/* My Agents Section Header */}
+        <section className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-[#111115] border border-white/[0.06]">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-base font-bold text-white tracking-tight">My Agents</h2>
+              <span className="px-2 py-0.5 rounded-md bg-zinc-900 border border-white/[0.08] text-xs font-mono text-zinc-400">
+                {agents.length} active
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Arc Testnet (5042002)
+              </span>
+            </div>
+            <p className="text-xs font-mono text-zinc-500 mt-1">
+              Autonomous AI agent wallets on Arc backed by your verified World ID Selfie Check collateral
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            {/* [ + Add Agent ] Button */}
+            <button
+              onClick={() => setIsAddAgentOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-mono font-semibold shadow-sm transition active:scale-[0.98]"
+            >
+              <Plus className="w-3.5 h-3.5 text-zinc-950" />
+              <span>+ Add Agent</span>
+            </button>
+          </div>
+        </section>
+
         {/* Main Workspace Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-7 items-start">
           {/* Left 2 Cols: Agents Management */}
           <div className="lg:col-span-2 space-y-4">
             {/* Filter and View Toolbar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1">
-              {/* Search input */}
-              <div className="relative w-full sm:w-64">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-zinc-500" />
-                <input
-                  type="text"
-                  placeholder="Search agents or address..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111115] border border-white/[0.08] text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition"
-                />
-              </div>
-
-              {/* Status pills + view switch */}
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                <div className="flex items-center gap-1 bg-[#111115] p-1 rounded-lg border border-white/[0.06] text-[11px] font-mono">
-                  <button
-                    onClick={() => setStatusFilter("all")}
-                    className={`px-2.5 py-1 rounded-md transition ${
-                      statusFilter === "all"
-                        ? "bg-zinc-800 text-zinc-100 font-medium"
-                        : "text-zinc-500 hover:text-zinc-300"
-                    }`}
-                  >
-                    All ({agents.length})
-                  </button>
-                  <button
-                    onClick={() => setStatusFilter("debt")}
-                    className={`px-2.5 py-1 rounded-md transition ${
-                      statusFilter === "debt"
-                        ? "bg-zinc-800 text-zinc-100 font-medium"
-                        : "text-zinc-500 hover:text-zinc-300"
-                    }`}
-                  >
-                    Drawn ({agents.filter((a) => a.outstandingDebt > 0).length})
-                  </button>
-                  <button
-                    onClick={() => setStatusFilter("clean")}
-                    className={`px-2.5 py-1 rounded-md transition ${
-                      statusFilter === "clean"
-                        ? "bg-zinc-800 text-zinc-100 font-medium"
-                        : "text-zinc-500 hover:text-zinc-300"
-                    }`}
-                  >
-                    Full Headroom ({agents.filter((a) => a.outstandingDebt === 0).length})
-                  </button>
+            {agents.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1">
+                {/* Search input */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-zinc-500" />
+                  <input
+                    type="text"
+                    placeholder="Search agents or address..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111115] border border-white/[0.08] text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-500 font-mono transition"
+                  />
                 </div>
 
-                {/* Grid / Table toggle */}
-                <div className="flex items-center bg-[#111115] p-1 rounded-lg border border-white/[0.06] text-zinc-400">
+                {/* Status pills + view switch */}
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="flex items-center gap-1 bg-[#111115] p-1 rounded-lg border border-white/[0.06] text-[11px] font-mono">
+                    <button
+                      onClick={() => setStatusFilter("all")}
+                      className={`px-2.5 py-1 rounded-md transition ${
+                        statusFilter === "all"
+                          ? "bg-zinc-800 text-zinc-100 font-medium"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      All ({agents.length})
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter("debt")}
+                      className={`px-2.5 py-1 rounded-md transition ${
+                        statusFilter === "debt"
+                          ? "bg-zinc-800 text-zinc-100 font-medium"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      Drawn ({agents.filter((a) => a.outstandingDebt > 0).length})
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter("clean")}
+                      className={`px-2.5 py-1 rounded-md transition ${
+                        statusFilter === "clean"
+                          ? "bg-zinc-800 text-zinc-100 font-medium"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      Full Headroom ({agents.filter((a) => a.outstandingDebt === 0).length})
+                    </button>
+                  </div>
+
+                  {/* Grid / Table toggle */}
+                  <div className="flex items-center bg-[#111115] p-1 rounded-lg border border-white/[0.06] text-zinc-400">
+                    <button
+                      onClick={() => setViewMode("grid")}
+                      className={`p-1 rounded-md transition ${
+                        viewMode === "grid" ? "bg-zinc-800 text-zinc-100" : "hover:text-zinc-200"
+                      }`}
+                      title="Grid View"
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("table")}
+                      className={`p-1 rounded-md transition ${
+                        viewMode === "table" ? "bg-zinc-800 text-zinc-100" : "hover:text-zinc-200"
+                      }`}
+                      title="Compact Table View"
+                    >
+                      <List className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Agents View (Empty State, Grid, or Table) */}
+            {agents.length === 0 ? (
+              /* CLEAN, SLEEK EMPTY STATE */
+              <div className="p-10 sm:p-12 text-center rounded-2xl bg-[#111115] border border-dashed border-white/[0.08] space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-400">
+                  <Bot className="w-6 h-6 text-zinc-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">No agents added yet</h3>
+                  <p className="text-xs font-mono text-zinc-500 max-w-sm mx-auto mt-1.5 leading-relaxed">
+                    Float allows verified Human Operators to extend controlled USDC credit lines to autonomous AI agents on Arc Testnet.
+                  </p>
+                </div>
+                <div className="pt-2">
                   <button
-                    onClick={() => setViewMode("grid")}
-                    className={`p-1 rounded-md transition ${
-                      viewMode === "grid" ? "bg-zinc-800 text-zinc-100" : "hover:text-zinc-200"
-                    }`}
-                    title="Grid View"
+                    onClick={() => setIsAddAgentOpen(true)}
+                    className="px-5 py-2.5 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-mono font-semibold transition shadow-sm"
                   >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode("table")}
-                    className={`p-1 rounded-md transition ${
-                      viewMode === "table" ? "bg-zinc-800 text-zinc-100" : "hover:text-zinc-200"
-                    }`}
-                    title="Compact Table View"
-                  >
-                    <List className="w-3.5 h-3.5" />
+                    + Add Agent
                   </button>
                 </div>
               </div>
-            </div>
-
-            {/* Agents View (Grid or Table) */}
-            {filteredAgents.length === 0 ? (
+            ) : filteredAgents.length === 0 ? (
               <div className="p-12 text-center text-xs font-mono text-zinc-500 border border-dashed border-white/[0.08] rounded-xl">
-                No matching agents found.
+                No agents match your search filter.
               </div>
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -382,6 +445,7 @@ export default function Dashboard() {
                     agent={agent}
                     onOpenBorrow={(a) => setSelectedBorrowAgent(a)}
                     onOpenRepay={(a) => setSelectedRepayAgent(a)}
+                    onRemoveAgent={(a) => setSelectedRemoveAgent(a)}
                   />
                 ))}
               </div>
@@ -424,7 +488,7 @@ export default function Dashboard() {
                             className="p-1.5 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-white transition"
                             title="Draw Credit"
                           >
-                            <ArrowDownLeft className="w-3.5 h-3.5" />
+                            Draw
                           </button>
                           <button
                             onClick={() => setSelectedRepayAgent(agent)}
@@ -432,7 +496,14 @@ export default function Dashboard() {
                             className="p-1.5 rounded-md hover:bg-zinc-800 disabled:opacity-20 text-zinc-400 hover:text-white transition"
                             title="Repay Debt"
                           >
-                            <ArrowUpRight className="w-3.5 h-3.5" />
+                            Repay
+                          </button>
+                          <button
+                            onClick={() => setSelectedRemoveAgent(agent)}
+                            className="p-1.5 rounded-md hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 transition"
+                            title="Remove Agent"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -469,6 +540,14 @@ export default function Dashboard() {
         isOpen={isAddAgentOpen}
         onClose={() => setIsAddAgentOpen(false)}
         onAgentAdded={handleAgentAdded}
+        humanOwner={nullifierHash}
+      />
+
+      <RemoveAgentModal
+        agent={selectedRemoveAgent}
+        isOpen={!!selectedRemoveAgent}
+        onClose={() => setSelectedRemoveAgent(null)}
+        onConfirmRemove={handleConfirmRemove}
       />
 
       <ApiModal
