@@ -2,13 +2,15 @@
 
 import React, { useState } from "react";
 import { Agent } from "@/types";
-import { Copy, Check, ArrowDownLeft, ArrowUpRight, ShieldCheck, Trash2 } from "lucide-react";
+import { Copy, Check, ArrowDownLeft, ArrowUpRight, CheckCircle2, Globe, Trash2 } from "lucide-react";
 
 interface AgentCardProps {
   agent: Agent;
   onOpenBorrow: (agent: Agent) => void;
   onOpenRepay: (agent: Agent) => void;
   onRemoveAgent?: (agent: Agent) => void;
+  onOpenAgentKitRegister?: (agent: Agent) => void;
+  onOpenDetails?: (agent: Agent) => void;
 }
 
 export const AgentCard: React.FC<AgentCardProps> = ({
@@ -16,14 +18,13 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   onOpenBorrow,
   onOpenRepay,
   onRemoveAgent,
+  onOpenAgentKitRegister,
+  onOpenDetails,
 }) => {
   const [copied, setCopied] = useState(false);
 
   const availableCredit = Math.max(0, agent.creditLimit - agent.outstandingDebt);
-  const utilizationRatio = Math.min(
-    100,
-    Math.round((agent.outstandingDebt / agent.creditLimit) * 100)
-  );
+  const isWorldBacked = agent.isWorldBacked || agent.agentBookStatus === "VERIFIED";
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -32,123 +33,126 @@ export const AgentCard: React.FC<AgentCardProps> = ({
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const utilization = Math.min(
+    100,
+    Math.round((agent.outstandingDebt / agent.creditLimit) * 100)
+  );
+
   return (
-    <div className="sleek-card p-5 rounded-xl flex flex-col justify-between group">
-      <div>
+    <div className="fintech-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between group transition duration-200">
+      <div className="space-y-4">
         {/* Card Header */}
-        <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium text-zinc-100 text-sm tracking-tight">{agent.name}</h3>
-              <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-800/80 text-zinc-400 border border-white/[0.05]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                {agent.status}
+            <h3 className="text-base font-semibold text-white tracking-tight font-sans">
+              {agent.name}
+            </h3>
+
+            {/* Truncated Address */}
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition mt-0.5"
+              title="Click to copy full address"
+            >
+              <span>
+                {agent.address.slice(0, 6)}...{agent.address.slice(-4)}
               </span>
-            </div>
-
-            {/* Network & Address */}
-            <div className="flex items-center gap-2 mt-1">
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-1 text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition"
-                title="Click to copy full address"
-              >
-                <span>
-                  {agent.address.slice(0, 6)}...{agent.address.slice(-4)}
-                </span>
-                {copied ? (
-                  <Check className="w-3 h-3 text-emerald-400" />
-                ) : (
-                  <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                )}
-              </button>
-
-              <span className="text-zinc-700 font-mono text-[10px]">•</span>
-
-              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-emerald-400/80">
-                <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                Arc Testnet
-              </span>
-            </div>
+              {copied ? (
+                <Check className="w-3 h-3 text-emerald-400" />
+              ) : (
+                <Copy className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
+            </button>
           </div>
 
-          <div className="text-right">
-            <div className="text-[10px] font-mono uppercase text-zinc-500">Credit Limit</div>
-            <div className="text-xs font-mono font-medium text-zinc-300 tabular-nums">
-              ${agent.creditLimit.toFixed(2)}
-            </div>
+          {/* World-Backed Status / Register Action */}
+          <div>
+            {isWorldBacked ? (
+              <div className="text-right">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Human-backed ✓</span>
+                </div>
+                <div className="text-[10px] text-zinc-500 mt-0.5">
+                  Registered on AgentBook
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => onOpenAgentKitRegister?.(agent)}
+                className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-medium border border-white/[0.08] transition active:scale-[0.98]"
+              >
+                Register with World
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Utilization Bar */}
-        <div className="space-y-1.5 mb-4">
-          <div className="flex justify-between text-[11px] font-mono">
-            <span className="text-zinc-400">Available: ${availableCredit.toFixed(2)}</span>
-            <span className="text-zinc-500">{utilizationRatio}% used</span>
+        {/* Primary Financial Metric Readout */}
+        <div className="pt-2">
+          <div className="flex items-baseline justify-between text-sm sm:text-base font-medium">
+            <span className="text-white tabular-nums">
+              ${agent.outstandingDebt.toFixed(2)}{" "}
+              <span className="text-xs font-normal text-zinc-400">borrowed</span>
+            </span>
+            <span className="text-zinc-400 tabular-nums">
+              ${availableCredit.toFixed(2)}{" "}
+              <span className="text-xs font-normal text-zinc-500">available</span>
+            </span>
           </div>
-          <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+
+          {/* Minimal utilization track */}
+          <div className="w-full h-1 bg-white/[0.06] rounded-full mt-2.5 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                utilizationRatio > 75 ? "bg-amber-400" : "bg-emerald-400"
+                utilization > 80 ? "bg-amber-400" : "bg-emerald-400"
               }`}
-              style={{ width: `${utilizationRatio}%` }}
+              style={{ width: `${Math.max(utilization, agent.outstandingDebt > 0 ? 3 : 0)}%` }}
             />
-          </div>
-        </div>
-
-        {/* Financial Metrics Grid */}
-        <div className="grid grid-cols-3 gap-2 p-3 rounded-lg bg-zinc-900/60 border border-white/[0.04] mb-4 text-xs font-mono">
-          <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Drawn Debt</div>
-            <div className={`font-medium tabular-nums mt-0.5 ${agent.outstandingDebt > 0 ? "text-zinc-200" : "text-zinc-400"}`}>
-              ${agent.outstandingDebt.toFixed(2)}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Liquid</div>
-            <div className="font-medium text-zinc-200 tabular-nums mt-0.5">
-              ${agent.currentBalance.toFixed(2)}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-zinc-500 text-[10px] uppercase">Repaid</div>
-            <div className="font-medium text-emerald-400 tabular-nums mt-0.5">
-              ${agent.totalRepaid.toFixed(2)}
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Card Actions */}
-      <div className="flex items-center gap-2 pt-2 border-t border-white/[0.05]">
+      {/* Card Actions Footer */}
+      <div className="flex items-center gap-2 pt-4 mt-4 border-t border-white/[0.05]">
+        {/* Draw Button */}
         <button
           onClick={() => onOpenBorrow(agent)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-white/[0.06] transition active:scale-[0.98]"
+          className="flex-1 py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white text-xs font-medium border border-white/[0.06] transition flex items-center justify-center gap-1.5"
         >
-          <ArrowDownLeft className="w-3.5 h-3.5 text-zinc-400" />
+          <ArrowDownLeft className="w-3 h-3 text-zinc-400" />
           <span>Draw</span>
         </button>
 
+        {/* Repay Button */}
         <button
           onClick={() => onOpenRepay(agent)}
           disabled={agent.outstandingDebt <= 0}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-medium border transition ${
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 ${
             agent.outstandingDebt > 0
-              ? "bg-zinc-100 hover:bg-white text-zinc-950 border-transparent active:scale-[0.98]"
+              ? "bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border-white/[0.06]"
               : "opacity-30 cursor-not-allowed bg-transparent text-zinc-600 border-white/[0.04]"
           }`}
         >
-          <ArrowUpRight className="w-3.5 h-3.5" />
+          <ArrowUpRight className="w-3 h-3 text-zinc-400" />
           <span>Repay</span>
         </button>
 
+        {/* View Verification / Details */}
+        <button
+          onClick={() => (onOpenDetails ? onOpenDetails(agent) : onOpenAgentKitRegister?.(agent))}
+          className="py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-medium border border-white/[0.06] transition"
+          title="View Agent & Verification Details"
+        >
+          <span>View</span>
+        </button>
+
+        {/* Remove */}
         {onRemoveAgent && (
           <button
             onClick={() => onRemoveAgent(agent)}
-            className="p-1.5 rounded-lg bg-zinc-900/80 hover:bg-rose-950/40 text-zinc-500 hover:text-rose-400 border border-white/[0.06] hover:border-rose-500/20 transition"
-            title="Remove / Disconnect Agent"
+            className="p-1.5 rounded-lg text-zinc-600 hover:text-rose-400 hover:bg-rose-950/20 transition"
+            title="Disconnect Agent"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>

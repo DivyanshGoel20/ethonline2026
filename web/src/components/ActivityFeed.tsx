@@ -2,89 +2,102 @@
 
 import React from "react";
 import { ActivityItem } from "@/types";
-import { ArrowDownLeft, ArrowUpRight, Plus, ExternalLink } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Plus, ExternalLink, Bot } from "lucide-react";
 
 interface ActivityFeedProps {
   items: ActivityItem[];
 }
 
+function getRelativeTime(timestamp: number): string {
+  const diffMs = Date.now() - timestamp;
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
+
 export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
-  if (items.length === 0) {
-    return (
-      <div className="p-8 text-center text-xs font-mono text-zinc-600 border border-dashed border-white/[0.06] rounded-xl">
-        No recent activity recorded
-      </div>
-    );
-  }
-
   return (
-    <div className="sleek-card rounded-xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-        <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400">
-          Live Facility Audit Log
-        </h3>
-        <span className="text-[11px] font-mono text-zinc-500">
-          {items.length} events logged
-        </span>
+    <div className="fintech-card rounded-2xl p-5 space-y-4">
+      <div className="flex items-center justify-between pb-1 border-b border-white/[0.05]">
+        <h4 className="text-xs font-semibold text-zinc-300 font-sans">Recent Activity</h4>
+        <span className="text-[11px] text-zinc-500 font-mono">Arc Testnet</span>
       </div>
 
-      <div className="divide-y divide-white/[0.04]">
-        {items.map((item) => {
-          const formattedTime = new Date(item.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          });
+      {items.length === 0 ? (
+        <div className="py-8 text-center text-xs text-zinc-500 font-sans">
+          No operations recorded yet
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.slice(0, 7).map((item) => {
+            const isBorrow = item.type === "borrow";
+            const isRepay = item.type === "repay";
+            const isRegister = item.type === "register";
 
-          return (
-            <div
-              key={item.id}
-              className="px-4 py-3 flex items-center justify-between gap-3 text-xs font-mono hover:bg-zinc-900/40 transition"
-            >
-              {/* Type and Agent */}
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                    item.type === "borrow"
-                      ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                      : item.type === "repay"
-                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                      : item.type === "remove"
-                      ? "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                      : "bg-zinc-800 text-zinc-300 border border-white/[0.06]"
-                  }`}
-                >
-                  {item.type === "borrow" && <ArrowDownLeft className="w-3.5 h-3.5" />}
-                  {item.type === "repay" && <ArrowUpRight className="w-3.5 h-3.5" />}
-                  {item.type === "register" && <Plus className="w-3.5 h-3.5" />}
-                  {item.type === "remove" && <span className="text-xs">✕</span>}
-                </div>
-
-                <div>
-                  <div className="text-zinc-200 font-medium">{item.agentName}</div>
-                  <div className="text-[11px] text-zinc-500">{item.agentAddress.slice(0, 8)}...</div>
-                </div>
-              </div>
-
-              {/* Event Type / Amount */}
-              <div className="text-right">
-                {item.amount !== undefined ? (
+            return (
+              <div
+                key={item.id}
+                className="flex items-center justify-between gap-3 text-xs py-1"
+              >
+                {/* Left: Icon & Event Name */}
+                <div className="flex items-center gap-2.5 min-w-0">
                   <div
-                    className={`font-semibold tabular-nums ${
-                      item.type === "borrow" ? "text-amber-400" : "text-emerald-400"
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                      isBorrow
+                        ? "bg-zinc-900 border-white/[0.08] text-white"
+                        : isRepay
+                        ? "bg-emerald-950/30 border-emerald-500/20 text-emerald-400"
+                        : "bg-zinc-900 border-white/[0.08] text-zinc-400"
                     }`}
                   >
-                    {item.type === "borrow" ? "+" : "-"}${item.amount.toFixed(2)} USDC
+                    {isBorrow && <ArrowDownLeft className="w-3.5 h-3.5" />}
+                    {isRepay && <ArrowUpRight className="w-3.5 h-3.5" />}
+                    {isRegister && <Bot className="w-3.5 h-3.5" />}
                   </div>
-                ) : (
-                  <div className="text-zinc-300 font-medium">Facility Created</div>
-                )}
-                <div className="text-[10px] text-zinc-500">{formattedTime}</div>
+
+                  <div className="min-w-0">
+                    <div className="font-medium text-zinc-200 truncate">
+                      {isBorrow
+                        ? "Borrowed"
+                        : isRepay
+                        ? "Repaid"
+                        : isRegister
+                        ? "Agent registered"
+                        : "Disconnected"}
+                    </div>
+                    <div className="text-[11px] text-zinc-500 truncate font-mono">
+                      {item.agentName}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Amount & Relative Time */}
+                <div className="text-right shrink-0">
+                  {item.amount !== undefined ? (
+                    <div
+                      className={`font-semibold tabular-nums text-xs ${
+                        isBorrow ? "text-white" : "text-emerald-400"
+                      }`}
+                    >
+                      {isBorrow ? "+" : "-"}${item.amount.toFixed(2)} USDC
+                    </div>
+                  ) : (
+                    <div className="text-zinc-400 text-[11px]">Ready</div>
+                  )}
+                  <div className="text-[10px] text-zinc-500">
+                    {getRelativeTime(item.timestamp)}
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

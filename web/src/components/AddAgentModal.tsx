@@ -125,8 +125,9 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
               onChange={(e) => setWalletAddress(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-white/[0.08] text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
             />
-            <p className="text-[10px] font-mono text-zinc-600">
-              Must be an active EVM address verifiable on Arc Testnet.
+            <p className="text-[10px] font-mono text-zinc-500 flex items-center justify-between">
+              <span>Must be an active EVM address on Arc Testnet.</span>
+              <span className="text-zinc-400">AgentKit verified</span>
             </p>
           </div>
 

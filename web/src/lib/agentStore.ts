@@ -34,15 +34,26 @@ export function saveAllAgents(agents: Agent[]) {
   }
 }
 
-export function getAgentsByOwner(owner?: string): Agent[] {
+export function getAgentsByOwner(owner?: string, agentBookHumanId?: string): Agent[] {
   const all = getAllAgents();
-  if (!owner) return all;
-  return all.filter((a) => a.humanOwner?.toLowerCase() === owner.toLowerCase());
+  if (!owner && !agentBookHumanId) return all;
+  return all.filter((a) => {
+    if (
+      agentBookHumanId &&
+      a.agentBookHumanId &&
+      a.agentBookHumanId.toLowerCase() === agentBookHumanId.toLowerCase()
+    ) {
+      return true;
+    }
+    if (owner && a.humanOwner && a.humanOwner.toLowerCase() === owner.toLowerCase()) {
+      return true;
+    }
+    return false;
+  });
 }
 
 export function addAgentToStore(newAgent: Agent): Agent {
   const all = getAllAgents();
-  // Check if wallet address already exists
   const existingIndex = all.findIndex(
     (a) => a.address.toLowerCase() === newAgent.address.toLowerCase()
   );
@@ -81,7 +92,10 @@ export function getAgentByAddress(address: string): Agent | null {
   );
 }
 
-export function getHumanFacilityStats(humanOwner: string): {
+export function getHumanFacilityStats(
+  humanOwner: string,
+  agentBookHumanId?: string
+): {
   humanOwner: string;
   agentCount: number;
   totalCreditLimit: number;
@@ -90,8 +104,8 @@ export function getHumanFacilityStats(humanOwner: string): {
   totalBorrowed: number;
   totalRepaid: number;
 } {
-  const humanAgents = getAgentsByOwner(humanOwner);
-  const totalCreditLimit = 500; // World ID Selfie Check backed credit line
+  const humanAgents = getAgentsByOwner(humanOwner, agentBookHumanId);
+  const totalCreditLimit = 500; // Single $500 facility limit per human
   const totalOutstandingDebt = humanAgents.reduce(
     (sum, a) => sum + (a.outstandingDebt || 0),
     0

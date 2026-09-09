@@ -1,5 +1,22 @@
 [
   {
+    "loanId": "loan_1788990433505_2eb4y",
+    "agentAddress": "0x6eb17a51b1b0323db039c3e808033f262492c87a",
+    "agentName": "ejeji",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 25,
+    "outstandingAmount": 0,
+    "totalRepaid": 25,
+    "status": "SETTLED",
+    "borrowedAt": 1788990433505,
+    "borrowTxHash": "0xarc7e8a9c972c08ff7fbff1ae551ca16acd56d6691f755ff5de9f7417398dc3",
+    "repayTxHashes": [
+      "0xarc53f93dc45d6248f14fee1ee3f2d27b966c8a32b835a58035d71045b35d37"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1788990433742
+  },
+  {
     "loanId": "loan_1788986668281_x1xjo",
     "agentAddress": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
     "agentName": "Research Agent",

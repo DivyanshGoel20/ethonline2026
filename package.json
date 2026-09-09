@@ -26,5 +26,8 @@
     "nanopayments"
   ],
   "author": "Float Team",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@worldcoin/agentkit": "^0.2.1"
+  }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, Terminal, ShieldCheck, LogOut } from "lucide-react";
+import { Plus, Terminal, LogOut, CheckCircle2 } from "lucide-react";
 
 interface HeaderProps {
   onOpenAddAgent: () => void;
@@ -18,84 +18,72 @@ export const Header: React.FC<HeaderProps> = ({
   onSignOut,
   isWorldVerified,
   nullifierHash,
-  activeAgentsCount,
 }) => {
   return (
-    <header className="border-b border-white/[0.08] bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-30">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand */}
+    <header className="border-b border-white/[0.06] bg-[#060709]/90 backdrop-blur-md sticky top-0 z-30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+        {/* Brand & Network Indicator */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center font-mono font-black text-xs text-zinc-950 shadow-sm">
-              FL
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-semibold text-sm tracking-wide text-zinc-100">FLOAT</span>
-              <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider hidden sm:inline">
-                // CREDIT PROTOCOL
-              </span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm tracking-tight text-white font-sans">
+              FLOAT
+            </span>
           </div>
 
-          <div className="h-4 w-px bg-zinc-800 hidden md:block" />
+          <div className="h-3.5 w-px bg-white/[0.08]" />
 
-          {/* Network indicator */}
-          <div className="hidden md:flex items-center gap-2 text-xs font-mono text-zinc-400">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
             </span>
-            <span>Arc Testnet (5042002)</span>
+            <span className="text-[11px] text-zinc-400">Arc Testnet</span>
+            <span className="text-zinc-600 text-[10px]">•</span>
+            <span className="text-[11px] text-zinc-400">World Chain</span>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          {/* World Verified Status & Sign Out */}
+        {/* Right Actions */}
+        <div className="flex items-center gap-2.5">
+          {/* Operator Status */}
           {isWorldVerified && (
-            <div className="flex items-center gap-1.5">
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-emerald-500/30 text-emerald-400 text-xs font-mono"
-                title={`World ID Cryptographic Nullifier: ${nullifierHash || "Active"}`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Human Verified</span>
-                {nullifierHash && (
-                  <span className="text-zinc-500 text-[10px]">
-                    ({nullifierHash.slice(0, 6)}...{nullifierHash.slice(-4)})
-                  </span>
-                )}
-              </div>
-
-              <button
-                onClick={onSignOut}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono transition"
-                title="Sign out of World ID session"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </button>
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900/90 border border-white/[0.08] text-xs text-zinc-300"
+              title="Verified Human Operator Session (World Selfie Check)"
+            >
+              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+              <span className="text-[11px] font-medium text-zinc-300">Human Verified</span>
             </div>
           )}
 
-          {/* Agent API Docs Button */}
+          {/* API Modal Trigger */}
           <button
             onClick={onOpenApiDocs}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 text-xs font-mono transition"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-white/[0.08] bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs transition"
+            title="Agent HTTP APIs"
           >
-            <Terminal className="w-3.5 h-3.5 text-zinc-400" />
-            <span className="hidden sm:inline">API</span>
+            <Terminal className="w-3 h-3" />
+            <span className="hidden sm:inline text-[11px]">APIs</span>
           </button>
 
-          {/* Add Agent Button */}
+          {/* Add Agent Action */}
           <button
             onClick={onOpenAddAgent}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-mono font-semibold shadow-sm transition active:scale-[0.98]"
-            title="Add an Arc Testnet agent wallet"
+            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-semibold shadow-sm transition active:scale-[0.98]"
           >
             <Plus className="w-3.5 h-3.5 text-zinc-950" />
             <span>Add Agent</span>
           </button>
+
+          {/* Sign Out */}
+          {isWorldVerified && (
+            <button
+              onClick={onSignOut}
+              className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 transition"
+              title="Sign out of World ID session"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
     </header>

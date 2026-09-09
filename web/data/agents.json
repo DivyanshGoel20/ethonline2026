@@ -1,7 +1,7 @@
 [
   {
-    "agentId": "agent_1788986440517_j9i6v",
-    "address": "0x2076eb0b39f93ca6a79c4634b0c83f99ebafb404",
+    "agentId": "agent_1788990727649_tnidj",
+    "address": "0x890663d91113b8fe99913bda4ee2647484a2591a",
     "name": "Trial",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "network": "Arc Testnet (5042002)",
@@ -11,34 +11,24 @@
     "totalRepaid": 0,
     "currentBalance": 0,
     "status": "Healthy",
-    "registeredAt": 1788986440517
+    "registeredAt": 1788990727649,
+    "isWorldBacked": false,
+    "agentBookStatus": "UNVERIFIED"
   },
   {
-    "agentId": "agent_1788985900922_utvsc",
-    "address": "0x2222222222222222222222222222222222222222",
-    "name": "Trading Agent",
+    "agentId": "agent_1788988403014_6vkcz",
+    "address": "0x6eb17a51b1b0323db039c3e808033f262492c87a",
+    "name": "ejeji",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "network": "Arc Testnet (5042002)",
     "creditLimit": 500,
     "outstandingDebt": 0,
-    "totalBorrowed": 0,
-    "totalRepaid": 10,
+    "totalBorrowed": 25,
+    "totalRepaid": 25,
     "currentBalance": 0,
     "status": "Healthy",
-    "registeredAt": 1788985900922
-  },
-  {
-    "agentId": "agent_1788985875648_hfpk7",
-    "address": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
-    "name": "Research Agent",
-    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
-    "network": "Arc Testnet (5042002)",
-    "creditLimit": 500,
-    "outstandingDebt": 0,
-    "totalBorrowed": 60,
-    "totalRepaid": 50,
-    "currentBalance": 40,
-    "status": "Healthy",
-    "registeredAt": 1788985875648
+    "registeredAt": 1788988403014,
+    "isWorldBacked": false,
+    "agentBookStatus": "UNVERIFIED"
   }
 ]

@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { Agent } from "@/types";
 import { getAllAgents, addAgentToStore, getAgentsByOwner, removeAgentFromStore } from "@/lib/agentStore";
 import { validateArcAgentWallet } from "@/lib/arc";
+import { resolveAgentBookStatus } from "@/lib/agentKit";
+
+function sanitizeAgentForClient(agent: Agent): Agent {
+  // Strip out internal agentBookHumanId to protect human privacy in UI
+  const { agentBookHumanId, ...rest } = agent;
+  return rest as Agent;
+}
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const owner = searchParams.get("owner");
 
-    const agents = owner ? getAgentsByOwner(owner) : getAllAgents();
+    const rawAgents = owner ? getAgentsByOwner(owner) : getAllAgents();
+    const agents = rawAgents.map(sanitizeAgentForClient);
 
     return NextResponse.json({
       agents,
@@ -49,6 +57,9 @@ export async function POST(req: NextRequest) {
 
     const formattedAddress = walletAddress.trim().toLowerCase() as `0x${string}`;
 
+    // AgentKit AgentBook verification on World Chain
+    const agentBookInfo = await resolveAgentBookStatus(formattedAddress);
+
     const newAgent: Agent = {
       agentId: `agent_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       address: formattedAddress,
@@ -62,13 +73,18 @@ export async function POST(req: NextRequest) {
       currentBalance: validation.balanceUsdc || 0,
       status: "Healthy",
       registeredAt: Date.now(),
+      isWorldBacked: agentBookInfo.isWorldBacked,
+      agentBookStatus: agentBookInfo.agentBookStatus,
+      agentBookHumanId: agentBookInfo.humanId || undefined,
     };
 
     const saved = addAgentToStore(newAgent);
 
     return NextResponse.json({
       success: true,
-      agent: saved,
+      agent: sanitizeAgentForClient(saved),
+      agentBookStatus: agentBookInfo.agentBookStatus,
+      isWorldBacked: agentBookInfo.isWorldBacked,
       message: `Agent ${saved.name} verified on Arc Testnet and registered to credit facility.`,
     });
   } catch (error: any) {
