@@ -20,6 +20,16 @@ export interface CreditStats {
   activeAgentsCount: number;
 }
 
+export interface ActivityItem {
+  id: string;
+  type: "borrow" | "repay" | "register";
+  agentName: string;
+  agentAddress: string;
+  amount?: number;
+  timestamp: number;
+  txHash: string;
+}
+
 export interface BorrowRequest {
   agentAddress: string;
   amount: string | number;
@@ -49,13 +59,4 @@ export interface RepayResponse {
   remainingDebt: number;
   agentAddress: string;
   error?: string;
-}
-
-export interface WorldVerificationPayload {
-  merkle_root: string;
-  nullifier_hash: string;
-  proof: string;
-  credential_type: "selfie_check" | "orb" | "phone";
-  action: string;
-  signal?: string;
 }

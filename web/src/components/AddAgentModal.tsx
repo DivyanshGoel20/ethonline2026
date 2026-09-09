@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Bot, ShieldCheck, KeyRound, Check } from "lucide-react";
+import { X, Plus, KeyRound } from "lucide-react";
 import { Agent } from "@/types";
 
 interface AddAgentModalProps {
@@ -15,18 +15,17 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
   onClose,
   onAgentAdded,
 }) => {
-  const [tab, setTab] = useState<"existing" | "create">("existing");
+  const [tab, setTab] = useState<"existing" | "create">("create");
   const [agentAddress, setAgentAddress] = useState("");
   const [agentName, setAgentName] = useState("");
   const [creditLimit, setCreditLimit] = useState("500");
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [challengeSigned, setChallengeSigned] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleVerifyAndAdd = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsVerifying(true);
+    setIsSubmitting(true);
 
     try {
       const res = await fetch("/api/agents", {
@@ -35,7 +34,7 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
         body: JSON.stringify({
           action: tab === "existing" ? "add" : "create",
           agentAddress: tab === "existing" ? agentAddress : undefined,
-          name: agentName || (tab === "existing" ? "Custom Agent" : "Platform AI Agent"),
+          name: agentName || (tab === "existing" ? "External Agent" : "Autonomous Bot"),
           creditLimit: parseFloat(creditLimit) || 500,
         }),
       });
@@ -48,76 +47,70 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
     } catch (err) {
       console.error("Failed to add agent:", err);
     } finally {
-      setIsVerifying(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Title */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-            <Bot className="w-5 h-5" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-[#111115] border border-white/[0.08] rounded-xl max-w-md w-full p-5 shadow-2xl relative">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-zinc-800 flex items-center justify-center text-zinc-300">
+              <Plus className="w-3.5 h-3.5" />
+            </div>
+            <h2 className="text-sm font-semibold text-zinc-100">Add Agent Facility</h2>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-white">Manage Agents</h2>
-            <p className="text-xs text-slate-400">Add an existing wallet or provision a platform agent</p>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-zinc-500 hover:text-zinc-300 p-1 rounded-md transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex rounded-xl bg-slate-950 p-1 border border-white/5 mb-5 text-xs font-medium">
+        {/* Tab Toggle */}
+        <div className="grid grid-cols-2 p-1 rounded-lg bg-zinc-950 border border-white/[0.06] mt-4 text-xs font-mono">
           <button
-            onClick={() => setTab("existing")}
-            className={`flex-1 py-2 rounded-lg transition ${
-              tab === "existing"
-                ? "bg-slate-800 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Add Existing Agent
-          </button>
-          <button
+            type="button"
             onClick={() => setTab("create")}
-            className={`flex-1 py-2 rounded-lg transition ${
-              tab === "create"
-                ? "bg-slate-800 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
+            className={`py-1.5 rounded-md transition ${
+              tab === "create" ? "bg-zinc-800 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            Create Through Float
+            Provision New
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("existing")}
+            className={`py-1.5 rounded-md transition ${
+              tab === "existing" ? "bg-zinc-800 text-zinc-100 font-medium" : "text-zinc-500 hover:text-zinc-300"
+            }`}
+          >
+            Existing Wallet
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleVerifyAndAdd} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Agent Name
+            <label className="block text-xs font-mono text-zinc-400 uppercase mb-1.5">
+              Agent Display Identifier
             </label>
             <input
               type="text"
-              placeholder="e.g. Research Agent or Arbitrage Bot"
+              placeholder="e.g. Market Execution Agent"
               value={agentName}
               onChange={(e) => setAgentName(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm focus:outline-none focus:border-teal-500 transition"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-white/[0.08] text-zinc-100 text-sm focus:outline-none focus:border-zinc-500 transition"
             />
           </div>
 
           {tab === "existing" && (
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                Agent Wallet Address (EVM / Arc)
+              <label className="block text-xs font-mono text-zinc-400 uppercase mb-1.5">
+                Agent Address (0x...)
               </label>
               <input
                 type="text"
@@ -125,43 +118,43 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
                 value={agentAddress}
                 onChange={(e) => setAgentAddress(e.target.value)}
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-teal-500 transition"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-white/[0.08] text-zinc-100 font-mono text-xs focus:outline-none focus:border-zinc-500 transition"
               />
-              <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                <KeyRound className="w-3 h-3 text-teal-400" />
-                Wallet must sign a one-time cryptographic challenge to prove ownership.
+              <p className="text-[11px] text-zinc-500 font-mono mt-1 flex items-center gap-1">
+                <KeyRound className="w-3 h-3 text-zinc-400" />
+                Wallet ownership verified via cryptographic challenge.
               </p>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Initial Credit Limit (USDC)
+            <label className="block text-xs font-mono text-zinc-400 uppercase mb-1.5">
+              Approved Credit Facility (USDC)
             </label>
             <input
               type="number"
               value={creditLimit}
               onChange={(e) => setCreditLimit(e.target.value)}
-              min="50"
-              max="5000"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-sm focus:outline-none focus:border-teal-500 transition"
+              min="20"
+              max="10000"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-white/[0.08] text-zinc-100 font-mono text-sm focus:outline-none focus:border-zinc-500 transition tabular-nums"
             />
           </div>
 
-          <div className="pt-2">
+          <div className="flex items-center gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 px-3 rounded-lg border border-white/[0.08] bg-transparent hover:bg-zinc-800 text-zinc-300 text-xs font-medium transition"
+            >
+              Cancel
+            </button>
             <button
               type="submit"
-              disabled={isVerifying}
-              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 text-sm font-semibold shadow-lg shadow-teal-500/10 transition active:scale-[0.99] flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className="flex-1 py-2 px-3 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition shadow-sm"
             >
-              {isVerifying ? (
-                <span>Verifying Signature & Settling...</span>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>{tab === "existing" ? "Verify & Add Agent" : "Create & Configure Agent"}</span>
-                </>
-              )}
+              {isSubmitting ? "Provisioning..." : "Authorize Facility"}
             </button>
           </div>
         </form>

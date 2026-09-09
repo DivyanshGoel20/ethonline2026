@@ -1,69 +1,66 @@
 "use client";
 
 import React from "react";
-import { ShieldCheck, ShieldAlert, Cpu, Sparkles } from "lucide-react";
+import { Plus, Terminal } from "lucide-react";
 
 interface HeaderProps {
-  isWorldVerified: boolean;
-  onOpenWorldVerify: () => void;
   onOpenAddAgent: () => void;
+  onOpenApiDocs: () => void;
+  activeAgentsCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  isWorldVerified,
-  onOpenWorldVerify,
   onOpenAddAgent,
+  onOpenApiDocs,
+  activeAgentsCount,
 }) => {
   return (
-    <header className="border-b border-white/10 bg-slate-950/60 backdrop-blur-md sticky top-0 z-40">
+    <header className="border-b border-white/[0.08] bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <Sparkles className="w-5 h-5 text-slate-950" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xl tracking-tight text-white">FLOAT</span>
-              <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20">
-                Arc USDC
+        {/* Brand */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center font-mono font-black text-xs text-zinc-950 shadow-sm">
+              FL
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-semibold text-sm tracking-wide text-zinc-100">FLOAT</span>
+              <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider hidden sm:inline">
+                // CREDIT PROTOCOL
               </span>
             </div>
-            <p className="text-xs text-slate-400">Autonomous Credit Facility for AI Agents</p>
+          </div>
+
+          <div className="h-4 w-px bg-zinc-800 hidden md:block" />
+
+          {/* System status indicator */}
+          <div className="hidden md:flex items-center gap-2 text-xs font-mono text-zinc-400">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>USDC Settlement Active</span>
           </div>
         </div>
 
-        {/* Status & Actions */}
-        <div className="flex items-center gap-3">
-          {/* Network Badge */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 border border-white/10 text-xs font-medium text-slate-300">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Arc Testnet
-          </div>
-
-          {/* World Verification Status */}
-          {isWorldVerified ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-950/80 border border-teal-500/30 text-teal-300 text-xs font-medium">
-              <ShieldCheck className="w-4 h-4 text-teal-400" />
-              <span>World Selfie Verified</span>
-            </div>
-          ) : (
-            <button
-              onClick={onOpenWorldVerify}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 text-xs font-medium transition"
-            >
-              <ShieldAlert className="w-4 h-4 text-indigo-400" />
-              <span>Verify with World</span>
-            </button>
-          )}
+        {/* Actions */}
+        <div className="flex items-center gap-2.5">
+          {/* API Docs Button */}
+          <button
+            onClick={onOpenApiDocs}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 text-xs font-mono transition"
+          >
+            <Terminal className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Agent API</span>
+          </button>
 
           {/* Add Agent Button */}
           <button
             onClick={onOpenAddAgent}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 text-xs font-semibold shadow-md shadow-teal-500/10 transition active:scale-95"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium shadow-sm transition active:scale-[0.98]"
           >
-            <Cpu className="w-4 h-4" />
-            <span>Manage Agents</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Agent</span>
           </button>
         </div>
       </div>
