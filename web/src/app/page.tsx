@@ -96,7 +96,7 @@ export default function Dashboard() {
 
   // Handle Borrow
   const handleConfirmBorrow = async (agentAddress: string, amount: number) => {
-    const res = await fetch("/api/agent/borrow", {
+    const res = await fetch("/api/borrow", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentAddress, amount }),
@@ -116,7 +116,7 @@ export default function Dashboard() {
         a.address.toLowerCase() === agentAddress.toLowerCase()
           ? {
               ...a,
-              outstandingDebt: a.outstandingDebt + amount,
+              outstandingDebt: data.newOutstandingDebt ?? a.outstandingDebt + amount,
               totalBorrowed: a.totalBorrowed + amount,
               currentBalance: a.currentBalance + amount,
             }
@@ -142,7 +142,7 @@ export default function Dashboard() {
 
   // Handle Repay
   const handleConfirmRepay = async (agentAddress: string, amount: number) => {
-    const res = await fetch("/api/agent/repay", {
+    const res = await fetch("/api/repay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ agentAddress, amount }),
@@ -157,17 +157,15 @@ export default function Dashboard() {
       (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
     );
 
-    setAgents((prev) =>
-      prev.map((a) =>
-        a.address.toLowerCase() === agentAddress.toLowerCase()
-          ? {
-              ...a,
-              outstandingDebt: Math.max(0, a.outstandingDebt - amount),
-              totalRepaid: a.totalRepaid + amount,
-            }
-          : a
-      )
-    );
+    // Refresh agent states from server to accurately reflect cross-agent / loan updates
+    fetch("/api/agents")
+      .then((r) => r.json())
+      .then((agentData) => {
+        if (agentData.agents && Array.isArray(agentData.agents)) {
+          setAgents(agentData.agents);
+        }
+      })
+      .catch((e) => console.error("Error refreshing agents:", e));
 
     setActivities((prev) => [
       {
@@ -175,7 +173,7 @@ export default function Dashboard() {
         type: "repay",
         agentName: targetAgent?.name || "Agent",
         agentAddress,
-        amount,
+        amount: data.amount || amount,
         timestamp: Date.now(),
         txHash: data.txHash || "0xarc_repay",
       },

@@ -74,6 +74,52 @@ export function updateAgentInStore(
   return all[index];
 }
 
+export function getAgentByAddress(address: string): Agent | null {
+  const all = getAllAgents();
+  return (
+    all.find((a) => a.address.toLowerCase() === address.toLowerCase()) || null
+  );
+}
+
+export function getHumanFacilityStats(humanOwner: string): {
+  humanOwner: string;
+  agentCount: number;
+  totalCreditLimit: number;
+  totalOutstandingDebt: number;
+  totalAvailableCredit: number;
+  totalBorrowed: number;
+  totalRepaid: number;
+} {
+  const humanAgents = getAgentsByOwner(humanOwner);
+  const totalCreditLimit = 500; // World ID Selfie Check backed credit line
+  const totalOutstandingDebt = humanAgents.reduce(
+    (sum, a) => sum + (a.outstandingDebt || 0),
+    0
+  );
+  const totalBorrowed = humanAgents.reduce(
+    (sum, a) => sum + (a.totalBorrowed || 0),
+    0
+  );
+  const totalRepaid = humanAgents.reduce(
+    (sum, a) => sum + (a.totalRepaid || 0),
+    0
+  );
+  const totalAvailableCredit = Math.max(
+    0,
+    totalCreditLimit - totalOutstandingDebt
+  );
+
+  return {
+    humanOwner,
+    agentCount: humanAgents.length,
+    totalCreditLimit,
+    totalOutstandingDebt,
+    totalAvailableCredit,
+    totalBorrowed,
+    totalRepaid,
+  };
+}
+
 export function removeAgentFromStore(address: string): boolean {
   const all = getAllAgents();
   const filtered = all.filter(
@@ -85,3 +131,4 @@ export function removeAgentFromStore(address: string): boolean {
   saveAllAgents(filtered);
   return true;
 }
+

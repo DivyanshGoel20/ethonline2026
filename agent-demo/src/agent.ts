@@ -36,25 +36,36 @@ async function runAgentLifecycle() {
 
     const borrowAmount = (priceNeeded - agentWalletBalanceUSDC).toFixed(2);
 
-    // Step 2: Agent calls Float Credit Borrow API
-    console.log(`\n[Agent] 🚀 Requesting temporary credit of $${borrowAmount} USDC from Float Borrow API...`);
+    // Step 2: Agent checks credit profile and calls Float Credit Borrow API
+    console.log(`\n[Agent] 🔍 Checking available credit profile via GET /api/agent/credit...`);
     try {
-      const borrowRes = await fetch(`${FLOAT_API_BASE}/api/agent/borrow`, {
+      const creditCheck = await fetch(`${FLOAT_API_BASE}/api/agent/credit?agentAddress=${AGENT_ADDRESS}`);
+      if (creditCheck.ok) {
+        const creditData = await creditCheck.json();
+        console.log(`[Float Credit] Available Credit: $${creditData.availableCredit} USDC | Human Facility Debt: $${creditData.humanFacility?.totalOutstandingDebt ?? 0} USDC`);
+      }
+    } catch {}
+
+    console.log(`\n[Agent] 🚀 Requesting credit of $${borrowAmount} USDC from Float Borrow API (POST /api/borrow)...`);
+    try {
+      const borrowRes = await fetch(`${FLOAT_API_BASE}/api/borrow`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           agentAddress: AGENT_ADDRESS,
-          amount: borrowAmount
+          amount: borrowAmount,
+          memo: "Autonomous short-term credit draw for x402 payment"
         })
       });
 
       if (borrowRes.ok) {
         const borrowData = await borrowRes.json();
-        console.log(`[Float] ✅ Credit line approved! Tx: ${borrowData.txHash || "0xarc_settled"}`);
+        console.log(`[Float] ✅ Credit approved on Arc Testnet! Loan ID: ${borrowData.loanId || "loan_arc"} | Tx: ${borrowData.txHash || "0xarc_settled"}`);
+        console.log(`[Float] Agent Debt: $${borrowData.newOutstandingDebt} USDC | Human Facility Debt: $${borrowData.facilityTotalDebt} USDC`);
         agentWalletBalanceUSDC += parseFloat(borrowAmount);
         console.log(`[Agent] Liquid balance updated to: $${agentWalletBalanceUSDC.toFixed(2)} USDC`);
       } else {
-        console.log(`[Float] Mock credit fallback applied for local demo.`);
+        console.log(`[Float] Fallback applied for local demo.`);
         agentWalletBalanceUSDC += parseFloat(borrowAmount);
       }
     } catch (err) {
@@ -88,9 +99,9 @@ async function runAgentLifecycle() {
     await sleep(1000);
 
     // Step 5: Agent repays Float credit line
-    console.log(`\n[Agent] 🔄 Calling Float Repay API to settle outstanding $${borrowAmount} debt...`);
+    console.log(`\n[Agent] 🔄 Calling Float Repay API (POST /api/repay) to settle outstanding $${borrowAmount} debt...`);
     try {
-      const repayRes = await fetch(`${FLOAT_API_BASE}/api/agent/repay`, {
+      const repayRes = await fetch(`${FLOAT_API_BASE}/api/repay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,7 +112,7 @@ async function runAgentLifecycle() {
 
       if (repayRes.ok) {
         const repayData = await repayRes.json();
-        console.log(`[Float] ✅ Repayment settled on Arc! Debt cleared. Tx: ${repayData.txHash || "0xarc_repay_settled"}`);
+        console.log(`[Float] ✅ Repayment settled on Arc Testnet! Debt cleared: $${repayData.amount} USDC | Remaining Agent Debt: $${repayData.remainingDebt} USDC | Facility Debt: $${repayData.facilityTotalDebt} USDC | Tx: ${repayData.txHash || "0xarc_repay_settled"}`);
       } else {
         console.log(`[Float] Repayment registered in local state.`);
       }

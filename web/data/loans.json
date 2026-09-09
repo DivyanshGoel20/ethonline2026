@@ -1,0 +1,55 @@
+[
+  {
+    "loanId": "loan_1788986668281_x1xjo",
+    "agentAddress": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
+    "agentName": "Research Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 20,
+    "outstandingAmount": 0,
+    "totalRepaid": 20,
+    "status": "SETTLED",
+    "borrowedAt": 1788986668281,
+    "borrowTxHash": "0xarca97cc7a366d4af9c44fc92cdff746d2ac32c85092d22b5396c5eae44b237",
+    "repayTxHashes": [
+      "0xarcc7b8c7492a8976527af704cd81bb2b0e25ea11a812e3fd658ebce57a0089"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1788986671606
+  },
+  {
+    "loanId": "loan_1788986453405_vdn7w",
+    "agentAddress": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
+    "agentName": "Research Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 20,
+    "outstandingAmount": 0,
+    "totalRepaid": 20,
+    "status": "SETTLED",
+    "borrowedAt": 1788986453405,
+    "borrowTxHash": "0xarc28993f0ca89d778e494677be8646007bd594cf939dea08d6e8c535dfbc5c",
+    "repayTxHashes": [
+      "0xarc3c6ccbfa45b999fd5a86eee81c68b9492a844dc97f8dbe738335441d1810",
+      "0xarc5c77211926913c3ecce49e144264bbf25e61fe6a9b74238d009af77c51f9"
+    ],
+    "memo": "Terminal test",
+    "settledAt": 1788986501724
+  },
+  {
+    "loanId": "loan_1788985890232_bbvr2",
+    "agentAddress": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
+    "agentName": "Research Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 20,
+    "outstandingAmount": 0,
+    "totalRepaid": 20,
+    "status": "SETTLED",
+    "borrowedAt": 1788985890232,
+    "borrowTxHash": "0xarc2f6ace0465665830ead43036470b02042c0655f1ebdd79b283ce31cbcb98",
+    "repayTxHashes": [
+      "0xarc2c3c954a50a095c278e1067151844dccf1eca0f490b8da4ef838673be0cc",
+      "0xarc113e6494c9beca8bd822c8c54d2cc5f804407004d380254dad17736abcdc"
+    ],
+    "memo": "Short-term research API call credit",
+    "settledAt": 1788985912824
+  }
+]
