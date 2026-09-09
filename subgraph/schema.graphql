@@ -1,0 +1,72 @@
+"""
+Standardized Financial Activity & Credit Schema for AI Agents in Float
+Conforms to The Graph Composable Data and Standardized Schema criteria.
+"""
+
+enum PaymentDirection {
+  INCOMING
+  OUTGOING
+}
+
+enum PaymentType {
+  CREDIT_DRAW
+  REPAYMENT
+  X402_NANOPAYMENT
+  REVENUE
+}
+
+type Agent @entity {
+  id: ID! # Agent wallet address in lowercase hex
+  agentAddress: Bytes!
+  humanOwner: Bytes! # Verified World Selfie Check human controller
+  name: String!
+  isActive: Boolean!
+  registeredAt: BigInt!
+  financialProfile: FinancialProfile!
+  borrows: [BorrowRecord!]! @derivedFrom(field: "agent")
+  repayments: [RepayRecord!]! @derivedFrom(field: "agent")
+  paymentActivities: [PaymentActivity!]! @derivedFrom(field: "agent")
+}
+
+type FinancialProfile @entity {
+  id: ID! # Agent address
+  agent: Agent!
+  totalBorrowed: BigInt!
+  totalRepaid: BigInt!
+  outstandingDebt: BigInt!
+  creditLimit: BigInt!
+  creditUtilizationBps: BigInt! # In basis points (0 - 10000)
+  borrowCount: BigInt!
+  repaymentCount: BigInt!
+  lastActivityTimestamp: BigInt!
+}
+
+type BorrowRecord @entity(immutable: true) {
+  id: ID! # txHash + logIndex
+  agent: Agent!
+  amount: BigInt!
+  outstandingDebtAfter: BigInt!
+  timestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type RepayRecord @entity(immutable: true) {
+  id: ID! # txHash + logIndex
+  agent: Agent!
+  amount: BigInt!
+  remainingDebt: BigInt!
+  timestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type PaymentActivity @entity(immutable: true) {
+  id: ID! # txHash + logIndex
+  agent: Agent!
+  direction: PaymentDirection!
+  token: Bytes!
+  amount: BigInt!
+  counterparty: Bytes!
+  paymentType: PaymentType!
+  timestamp: BigInt!
+  transactionHash: Bytes!
+}

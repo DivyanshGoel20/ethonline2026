@@ -1,0 +1,30 @@
+{
+  "name": "float-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Float — Controlled USDC credit lines for AI agents with World Selfie Check, Arc settlement, and The Graph indexing",
+  "workspaces": [
+    "web",
+    "subgraph",
+    "agent-demo"
+  ],
+  "scripts": {
+    "dev": "npm --workspace=web run dev",
+    "dev:agent": "npm --workspace=agent-demo run dev",
+    "dev:mock": "npm --workspace=agent-demo run mock",
+    "lint": "npm --workspace=web run lint"
+  },
+  "keywords": [
+    "ai-agents",
+    "defi",
+    "usdc",
+    "arc",
+    "world-id",
+    "selfie-check",
+    "the-graph",
+    "x402",
+    "nanopayments"
+  ],
+  "author": "Float Team",
+  "license": "MIT"
+}

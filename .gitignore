@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Next.js
+.next/
+out/
+
+# Foundry / Smart Contracts
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+
+# The Graph
+subgraph/generated/
+subgraph/build/
+
+# Production build outputs
+dist/
+build/
+
+docs/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# System and IDE
+.DS_Store
+*.pem
+.idea/
+*.swp
+*.swo
+
+project.md
+sponsor.md

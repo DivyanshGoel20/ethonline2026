@@ -1,0 +1,36 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: FloatCreditManager
+    network: mainnet # or custom Arc testnet network config
+    source:
+      address: "0x1234567890123456789012345678901234567890"
+      abi: FloatCreditManager
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Agent
+        - FinancialProfile
+        - BorrowRecord
+        - RepayRecord
+        - PaymentActivity
+      abis:
+        - name: FloatCreditManager
+          file: ../contracts/out/FloatCreditManager.sol/FloatCreditManager.json
+      eventHandlers:
+        - event: AgentRegistered(indexed address,indexed address,string,uint256)
+          handler: handleAgentRegistered
+        - event: BorrowCreated(indexed address,uint256,uint256,uint256)
+          handler: handleBorrowCreated
+        - event: RepaymentMade(indexed address,uint256,uint256,uint256)
+          handler: handleRepaymentMade
+        - event: CreditLimitUpdated(indexed address,uint256,uint256)
+          handler: handleCreditLimitUpdated
+        - event: CreditStatusChanged(indexed address,bool)
+          handler: handleCreditStatusChanged
+      file: ./src/mapping.ts
