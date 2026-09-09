@@ -1,17 +1,23 @@
 "use client";
 
 import React from "react";
-import { Plus, Terminal } from "lucide-react";
+import { Plus, Terminal, ShieldCheck, LogOut } from "lucide-react";
 
 interface HeaderProps {
   onOpenAddAgent: () => void;
   onOpenApiDocs: () => void;
+  onSignOut: () => void;
+  isWorldVerified: boolean;
+  nullifierHash: string | null;
   activeAgentsCount: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenAddAgent,
   onOpenApiDocs,
+  onSignOut,
+  isWorldVerified,
+  nullifierHash,
   activeAgentsCount,
 }) => {
   return (
@@ -45,6 +51,33 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Actions */}
         <div className="flex items-center gap-2.5">
+          {/* World Verified Status & Sign Out */}
+          {isWorldVerified && (
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-900 border border-emerald-500/30 text-emerald-400 text-xs font-mono"
+                title={`Verified World Operator: ${nullifierHash || "Active"}`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Human Verified</span>
+                {nullifierHash && (
+                  <span className="text-zinc-500 hidden lg:inline">
+                    ({nullifierHash.slice(0, 6)}...{nullifierHash.slice(-4)})
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={onSignOut}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono transition"
+                title="Sign out / Disconnect session"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </div>
+          )}
+
           {/* API Docs Button */}
           <button
             onClick={onOpenApiDocs}

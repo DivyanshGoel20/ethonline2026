@@ -8,15 +8,21 @@ import { BorrowModal } from "@/components/BorrowModal";
 import { RepayModal } from "@/components/RepayModal";
 import { AddAgentModal } from "@/components/AddAgentModal";
 import { ApiModal } from "@/components/ApiModal";
+import { WorldAuthGate } from "@/components/WorldAuthGate";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { Agent, CreditStats as CreditStatsType, ActivityItem } from "@/types";
-import { Search, LayoutGrid, List, Check, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Search, LayoutGrid, List, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 export default function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "debt" | "clean">("all");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+
+  // World Verification state
+  const [isWorldVerified, setIsWorldVerified] = useState(false);
+  const [nullifierHash, setNullifierHash] = useState<string | null>(null);
+  const [isLoadingSession, setIsLoadingSession] = useState(true);
 
   // Modals state
   const [selectedBorrowAgent, setSelectedBorrowAgent] = useState<Agent | null>(null);
@@ -63,6 +69,15 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    // Restore session if previously verified in browser
+    const storedSession = localStorage.getItem("float_world_session");
+    if (storedSession) {
+      setIsWorldVerified(true);
+      setNullifierHash(storedSession);
+    }
+    setIsLoadingSession(false);
+
+    // Fetch initial agents
     fetch("/api/agents")
       .then((res) => res.json())
       .then((data) => {
@@ -210,11 +225,56 @@ export default function Dashboard() {
     showToast(`Provisioned facility for ${newAgent.name}`);
   };
 
+  // Handle World Verification Passed
+  const handleWorldVerified = (hash: string) => {
+    localStorage.setItem("float_world_session", hash);
+    setIsWorldVerified(true);
+    setNullifierHash(hash);
+    setActivities((prev) => [
+      {
+        id: `act-${Date.now()}`,
+        type: "register",
+        agentName: "World Selfie Check",
+        agentAddress: hash,
+        timestamp: Date.now(),
+        txHash: "0xworld_selfie_liveness_verified",
+      },
+      ...prev,
+    ]);
+    showToast("Human operator verified via World Selfie Check");
+  };
+
+  // Handle Sign Out / Disconnect
+  const handleSignOut = () => {
+    localStorage.removeItem("float_world_session");
+    setIsWorldVerified(false);
+    setNullifierHash(null);
+    showToast("Signed out of World ID session", "neutral");
+  };
+
+  // Loading state while checking local session
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-zinc-500 font-mono text-xs">
+        Checking verification session...
+      </div>
+    );
+  }
+
+  // 1. GATEKEEPER: User CANNOT see the dashboard until passing Selfie Check
+  if (!isWorldVerified) {
+    return <WorldAuthGate onVerified={handleWorldVerified} />;
+  }
+
+  // 2. DASHBOARD: Only unlocked after Selfie Check passes
   return (
     <div className="min-h-screen flex flex-col bg-[#09090b] text-zinc-100 bg-grid-pattern">
       <Header
         onOpenAddAgent={() => setIsAddAgentOpen(true)}
         onOpenApiDocs={() => setIsApiDocsOpen(true)}
+        onSignOut={handleSignOut}
+        isWorldVerified={isWorldVerified}
+        nullifierHash={nullifierHash}
         activeAgentsCount={agents.length}
       />
 
@@ -226,7 +286,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-7">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7 space-y-6">
         {/* Top Metric Bar */}
         <section>
           <CreditStats stats={stats} />
