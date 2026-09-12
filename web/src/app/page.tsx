@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { Search } from "lucide-react";
+
 import { Header } from "@/components/Header";
 import { CreditStats } from "@/components/CreditStats";
-import { AgentCard } from "@/components/AgentCard";
+import { AgentRow, AgentListHeader } from "@/components/AgentRow";
 import { BorrowModal } from "@/components/BorrowModal";
 import { RepayModal } from "@/components/RepayModal";
 import { AddAgentModal } from "@/components/AddAgentModal";
@@ -16,111 +18,117 @@ import { WorldAuthGate } from "@/components/WorldAuthGate";
 import { SmartContractTelemetry } from "@/components/SmartContractTelemetry";
 import { LiveTransactionFeed } from "@/components/LiveTransactionFeed";
 import { ReputationTierCard } from "@/components/ReputationTierCard";
+import { Label, usd } from "@/components/ui";
 import { Agent, CreditStats as CreditStatsType } from "@/types";
-import { Search, Plus, Bot } from "lucide-react";
 
 export default function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "debt" | "clean">("all");
+  const [query, setQuery] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [facilityLimit, setFacilityLimit] = useState(10);
 
-  // World Verification Operator session
   const [isWorldVerified, setIsWorldVerified] = useState(false);
   const [nullifierHash, setNullifierHash] = useState<string | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState(true);
 
-  // Modals state
-  const [selectedBorrowAgent, setSelectedBorrowAgent] = useState<Agent | null>(null);
-  const [selectedRepayAgent, setSelectedRepayAgent] = useState<Agent | null>(null);
-  const [selectedRemoveAgent, setSelectedRemoveAgent] = useState<Agent | null>(null);
-  const [selectedAgentKitAgent, setSelectedAgentKitAgent] = useState<Agent | null>(null);
-  const [selectedDetailsAgent, setSelectedDetailsAgent] = useState<Agent | null>(null);
-  const [selectedPayAgent, setSelectedPayAgent] = useState<Agent | null>(null);
+  const [borrowAgent, setBorrowAgent] = useState<Agent | null>(null);
+  const [repayAgent, setRepayAgent] = useState<Agent | null>(null);
+  const [removeAgent, setRemoveAgent] = useState<Agent | null>(null);
+  const [registerAgent, setRegisterAgent] = useState<Agent | null>(null);
+  const [detailsAgent, setDetailsAgent] = useState<Agent | null>(null);
+  const [payAgent, setPayAgent] = useState<Agent | null>(null);
   const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
   const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
 
-  // Toast feedback
-  const [toast, setToast] = useState<{ message: string; type: "success" | "neutral" } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const showToast = (message: string, type: "success" | "neutral" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3200);
   };
 
-  const loadAgents = (ownerHash: string) => {
-    if (!ownerHash) return;
-    fetch(`/api/agents?owner=${encodeURIComponent(ownerHash)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.agents && Array.isArray(data.agents)) {
-          setAgents(data.agents);
-        }
-      })
-      .catch((err) => console.error("[Dashboard] Error fetching agents:", err));
+  /** Back to the gate: the cookie expired, was voided, or never existed. */
+  const endSession = () => {
+    setIsWorldVerified(false);
+    setNullifierHash(null);
+    setAgents([]);
   };
 
-  useEffect(() => {
-    // Restore session if previously verified in browser or via session query param
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionParam = urlParams.get("session") || urlParams.get("human");
-    const storedSession = sessionParam || localStorage.getItem("float_world_session");
-    if (storedSession) {
-      localStorage.setItem("float_world_session", storedSession);
-      setIsWorldVerified(true);
-      setNullifierHash(storedSession);
-      loadAgents(storedSession);
+  const loadAgents = async () => {
+    try {
+      const res = await fetch("/api/agents");
+      if (res.status === 401) return endSession();
+      const data = await res.json();
+      if (Array.isArray(data.agents)) setAgents(data.agents);
+    } catch (err) {
+      console.error("[Dashboard] Could not load agents:", err);
     }
-    setIsLoadingSession(false);
+  };
+
+  /**
+   * POST through the session.
+   *
+   * Every spending route is gated on the World cookie now, so a dead session
+   * has to put the operator back in front of the gate rather than surfacing a
+   * raw 401 inside a modal.
+   */
+  const post = async (url: string, body: unknown) => {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 401) {
+      endSession();
+      throw new Error("Your World session expired. Verify again to keep spending.");
+    }
+    if (!res.ok || !data.success) throw new Error(data.error || "That did not settle.");
+    return data;
+  };
+
+  // The session cookie is httpOnly, so who we are is a question for the server.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (res.ok) {
+          const { human } = await res.json();
+          setIsWorldVerified(true);
+          setNullifierHash(human);
+          await loadAgents();
+        }
+      } catch {
+        /* no session: the gate takes it from here */
+      } finally {
+        setIsLoadingSession(false);
+      }
+    })();
   }, []);
 
-  // Shared aggregate credit calculation (Human-level facility of $10.00)
-  const totalAvailableCredit = Math.max(
-    0,
-    10 - agents.reduce((acc, a) => acc + a.outstandingDebt, 0)
-  );
-  const totalCreditUsed = agents.reduce((acc, a) => acc + a.outstandingDebt, 0);
-  const totalOutstandingDebt = totalCreditUsed;
-  const totalBorrowed = agents.reduce((acc, a) => acc + a.totalBorrowed, 0);
-  const totalRepaid = agents.reduce((acc, a) => acc + a.totalRepaid, 0);
+  const drawn = agents.reduce((n, a) => n + a.outstandingDebt, 0);
+  const available = Math.max(0, facilityLimit - drawn);
 
   const stats: CreditStatsType = {
-    totalAvailableCredit,
-    totalCreditUsed,
-    totalOutstandingDebt,
-    totalBorrowed,
-    totalRepaid,
+    totalAvailableCredit: available,
+    totalCreditUsed: drawn,
+    totalOutstandingDebt: drawn,
+    totalBorrowed: agents.reduce((n, a) => n + a.totalBorrowed, 0),
+    totalRepaid: agents.reduce((n, a) => n + a.totalRepaid, 0),
     activeAgentsCount: agents.length,
   };
 
-  // Filtered agents
-  const filteredAgents = agents.filter((agent) => {
-    const matchesSearch =
-      agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      agent.address.toLowerCase().includes(searchQuery.toLowerCase());
+  const visible = agents.filter(
+    (a) =>
+      a.name.toLowerCase().includes(query.toLowerCase()) ||
+      a.address.toLowerCase().includes(query.toLowerCase())
+  );
 
-    if (!matchesSearch) return false;
-    if (statusFilter === "debt") return agent.outstandingDebt > 0;
-    if (statusFilter === "clean") return agent.outstandingDebt === 0;
-    return true;
-  });
-
-  // Handle Borrow
   const handleConfirmBorrow = async (agentAddress: string, amount: number) => {
-    const res = await fetch("/api/borrow", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentAddress, amount }),
-    });
-    const data = await res.json();
+    const data = await post("/api/borrow", { agentAddress, amount });
 
-    if (!data.success) {
-      throw new Error(data.error || "Failed to execute borrow draw");
-    }
-
-    const targetAgent = agents.find(
-      (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
-    );
+    const target = agents.find((a) => a.address.toLowerCase() === agentAddress.toLowerCase());
 
     setAgents((prev) =>
       prev.map((a) =>
@@ -135,114 +143,82 @@ export default function Dashboard() {
       )
     );
 
-
-
     setRefreshTrigger((t) => t + 1);
-    showToast(`Drawn $${amount.toFixed(2)} USDC for ${targetAgent?.name || "Agent"}`);
+    showToast(`${target?.name ?? "Agent"} drew ${usd(amount)} against the facility`);
   };
 
-  // Handle Repay
   const handleConfirmRepay = async (agentAddress: string, amount: number, txHash?: string) => {
-    const res = await fetch("/api/repay", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentAddress, amount, txHash }),
-    });
-    const data = await res.json();
+    await post("/api/repay", { agentAddress, amount, txHash });
 
-    if (!data.success) {
-      throw new Error(data.error || "Failed to settle repayment");
-    }
-
-    const targetAgent = agents.find(
-      (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
-    );
-
-    // Refresh agent states from server for this human
-    if (nullifierHash) {
-      loadAgents(nullifierHash);
-    }
+    const target = agents.find((a) => a.address.toLowerCase() === agentAddress.toLowerCase());
+    await loadAgents();
 
     setRefreshTrigger((t) => t + 1);
-    showToast(`Settled $${amount.toFixed(2)} USDC repayment for ${targetAgent?.name || "Agent"}`);
+    showToast(`${target?.name ?? "Agent"} settled ${usd(amount)}`);
   };
 
-  // Handle Agent Added
-  const handleAgentAdded = (newAgent: Agent) => {
+  const handleAgentAdded = (agent: Agent) => {
     setAgents((prev) => {
-      const exists = prev.some((a) => a.address.toLowerCase() === newAgent.address.toLowerCase());
-      if (exists) {
-        return prev.map((a) =>
-          a.address.toLowerCase() === newAgent.address.toLowerCase() ? newAgent : a
-        );
-      }
-      return [newAgent, ...prev];
+      const exists = prev.some((a) => a.address.toLowerCase() === agent.address.toLowerCase());
+      return exists
+        ? prev.map((a) => (a.address.toLowerCase() === agent.address.toLowerCase() ? agent : a))
+        : [agent, ...prev];
     });
-
     setRefreshTrigger((t) => t + 1);
-    showToast(`Added ${newAgent.name} to Arc credit facility`);
+    showToast(`${agent.name} is on the line`);
   };
 
-  // Handle Agent Removed / Disconnected
   const handleConfirmRemove = async (agentAddress: string) => {
     const res = await fetch(`/api/agents?address=${encodeURIComponent(agentAddress)}`, {
       method: "DELETE",
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || "Failed to disconnect agent");
+    if (res.status === 401) {
+      endSession();
+      throw new Error("Your World session expired. Verify again to manage agents.");
     }
+    if (!res.ok || !data.success) throw new Error(data.error || "Could not disconnect the agent");
 
-    const targetAgent = agents.find(
-      (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
-    );
-
-    setAgents((prev) =>
-      prev.filter((a) => a.address.toLowerCase() !== agentAddress.toLowerCase())
-    );
-
+    const target = agents.find((a) => a.address.toLowerCase() === agentAddress.toLowerCase());
+    setAgents((prev) => prev.filter((a) => a.address.toLowerCase() !== agentAddress.toLowerCase()));
     setRefreshTrigger((t) => t + 1);
-    showToast(`Disconnected ${targetAgent?.name || "Agent"} from facility`);
+    showToast(`${target?.name ?? "Agent"} disconnected`);
   };
 
-  // Handle World Verification Passed
   const handleWorldVerified = (hash: string) => {
-    localStorage.setItem("float_world_session", hash);
+    // The verify route already minted the cookie; this is the UI catching up.
     setIsWorldVerified(true);
     setNullifierHash(hash);
-    loadAgents(hash);
-    showToast("Human operator verified via World Selfie Check");
+    loadAgents();
+    showToast("Human verified via World Selfie Check");
   };
 
-  // Handle Sign Out
-  const handleSignOut = () => {
-    localStorage.removeItem("float_world_session");
-    setIsWorldVerified(false);
-    setNullifierHash(null);
-    setAgents([]);
-    if (typeof window !== "undefined") {
-      window.history.replaceState({}, "", window.location.pathname);
+  const handleSignOut = async () => {
+    // Forgetting the nullifier client-side is not signing out - the cookie is
+    // what authorises spending, so the server has to void it.
+    try {
+      await fetch("/api/auth/session", { method: "DELETE" });
+    } catch {
+      /* clear the UI either way */
     }
-    showToast("Signed out of World ID session", "neutral");
+    endSession();
   };
 
   if (isLoadingSession) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#060709] text-zinc-500 font-mono text-xs">
-        Checking verification session...
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="mn faint" style={{ fontSize: 10 }}>
+          checking session&hellip;
+        </span>
       </div>
     );
   }
 
-  // 1. GATEKEEPER: World Selfie Check authentication
-  if (!isWorldVerified) {
-    return <WorldAuthGate onVerified={handleWorldVerified} />;
-  }
+  if (!isWorldVerified) return <WorldAuthGate onVerified={handleWorldVerified} />;
 
-  // 2. MAIN REDESIGNED DASHBOARD
   return (
-    <div className="min-h-screen flex flex-col bg-[#060709] text-zinc-100 bg-grid-pattern">
+    <div className="min-h-screen flex flex-col">
       <Header
         onOpenAddAgent={() => setIsAddAgentOpen(true)}
         onOpenApiDocs={() => setIsApiDocsOpen(true)}
@@ -252,149 +228,113 @@ export default function Dashboard() {
         activeAgentsCount={agents.length}
       />
 
-      {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 py-2 px-4 rounded-xl bg-[#14171f] border border-white/[0.1] text-zinc-200 text-xs shadow-2xl flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <span>{toast.message}</span>
+        <div
+          className="fixed bottom-7 right-7 z-50 px-4 py-3 flex items-center gap-3"
+          style={{
+            background: "var(--paper)",
+            border: "1px solid var(--ink)",
+            boxShadow: "8px 8px 0 rgba(23,21,15,0.14)",
+          }}
+        >
+          <span style={{ width: 6, height: 6, background: "var(--sea)" }} />
+          <span style={{ fontSize: 13 }}>{toast}</span>
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 sm:space-y-10">
-        {/* Institutional Hero Credit Facility Section */}
-        <section>
-          <CreditStats stats={stats} />
-        </section>
+      <main className="flex-1 w-full max-w-[1200px] mx-auto px-6 sm:px-10 py-10 sm:py-12 space-y-12">
+        <CreditStats stats={stats} facilityLimit={facilityLimit} />
 
-        {/* Operator Reputation & 4-Tier Progression Card */}
-        <section>
-          <ReputationTierCard
-            humanOwner={nullifierHash || ""}
-            refreshTrigger={refreshTrigger}
-          />
-        </section>
+        <ReputationTierCard
+          humanOwner={nullifierHash || ""}
+          refreshTrigger={refreshTrigger}
+          onTier={setFacilityLimit}
+        />
 
-        {/* Section: My Agents Header */}
-        <section className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-white font-sans">
-                My Agents
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-zinc-900 border border-white/[0.08] text-xs text-zinc-400 font-mono">
-                {agents.length}
+        <section>
+          <div className="flex flex-wrap items-baseline justify-between gap-4 mb-3">
+            <div className="flex items-baseline gap-3">
+              <span className="serif" style={{ fontSize: 26 }}>
+                Agents
+              </span>
+              <span className="mn faint" style={{ fontSize: 9.5 }}>
+                {agents.length} on this line
               </span>
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
-              Human-backed agents on Arc
-            </p>
-          </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            {/* Search Filter */}
-            {agents.length > 0 && (
-              <div className="relative flex-1 sm:w-60">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-zinc-500" />
+            {agents.length > 4 && (
+              <div className="relative">
+                <Search
+                  className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--ink3)" }}
+                />
                 <input
-                  type="text"
-                  placeholder="Search agents..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900/80 border border-white/[0.08] text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-400 transition"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="filter"
+                  className="field"
+                  style={{ height: 32, width: 200, paddingLeft: 32, fontSize: 12 }}
                 />
               </div>
             )}
+          </div>
 
-            <button
-              onClick={() => setIsAddAgentOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-semibold shadow-sm transition active:scale-[0.98] shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5 text-zinc-950" />
-              <span>Add Agent</span>
-            </button>
+          <div style={{ borderTop: "1px solid var(--ink)" }}>
+            {agents.length === 0 ? (
+              <div className="py-12 text-center">
+                <p className="dim mx-auto" style={{ fontSize: 14, maxWidth: "44ch", lineHeight: 1.6 }}>
+                  No agents yet. Add an Arc wallet and it can start drawing against your line
+                  immediately &mdash; up to {usd(facilityLimit)}.
+                </p>
+                <button onClick={() => setIsAddAgentOpen(true)} className="btn btn-solid mt-6">
+                  Add your first agent
+                </button>
+              </div>
+            ) : visible.length === 0 ? (
+              <div className="py-10 dim" style={{ fontSize: 13 }}>
+                Nothing matches that filter.
+              </div>
+            ) : (
+              <>
+                <AgentListHeader />
+                {visible.map((agent) => (
+                  <AgentRow
+                    key={agent.address}
+                    agent={agent}
+                    facilityAvailable={available}
+                    onOpenBorrow={setBorrowAgent}
+                    onOpenRepay={setRepayAgent}
+                    onOpenPay={setPayAgent}
+                    onOpenDetails={setDetailsAgent}
+                  />
+                ))}
+              </>
+            )}
           </div>
         </section>
 
-        {/* Main Workspace Layout (Full-Width Agents Grid) */}
-        <div className="w-full space-y-4">
-          {agents.length === 0 ? (
-            /* High-End Clean Empty State */
-            <div className="fintech-card p-12 text-center rounded-2xl space-y-4">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-400">
-                <Bot className="w-6 h-6 text-zinc-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">No agents added</h3>
-                <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1.5 leading-relaxed">
-                  Add an Arc Testnet agent wallet to begin extending credit and linking to canonical World AgentBook.
-                </p>
-              </div>
-              <div className="pt-2">
-                <button
-                  onClick={() => setIsAddAgentOpen(true)}
-                  className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-semibold transition shadow-sm"
-                >
-                  + Add Existing Agent
-                </button>
-              </div>
-            </div>
-          ) : filteredAgents.length === 0 ? (
-            <div className="fintech-card p-12 text-center text-xs text-zinc-500 rounded-2xl">
-              No agents match your search filter.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredAgents.map((agent) => (
-                <AgentCard
-                  key={agent.address}
-                  agent={agent}
-                  facilityStats={{
-                    totalCreditLimit: stats.totalAvailableCredit + stats.totalOutstandingDebt,
-                    totalAvailableCredit: stats.totalAvailableCredit,
-                    totalOutstandingDebt: stats.totalOutstandingDebt,
-                  }}
-                  onOpenBorrow={(a) => setSelectedBorrowAgent(a)}
-                  onOpenRepay={(a) => setSelectedRepayAgent(a)}
-                  onOpenPay={(a) => setSelectedPayAgent(a)}
-                  onRemoveAgent={(a) => setSelectedRemoveAgent(a)}
-                  onOpenAgentKitRegister={(a) => setSelectedAgentKitAgent(a)}
-                  onOpenDetails={(a) => setSelectedDetailsAgent(a)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        <LiveTransactionFeed humanOwner={nullifierHash} refreshTrigger={refreshTrigger} />
 
-        {/* Live On-Chain Activity & Autonomous Signer Telemetry Stream */}
-        <section>
-          <LiveTransactionFeed
-            humanOwner={nullifierHash}
-            refreshTrigger={refreshTrigger}
-          />
-        </section>
+        <SmartContractTelemetry humanOwner={nullifierHash} refreshTrigger={refreshTrigger} />
 
-        {/* Live On-Chain Smart Contract Telemetry & Verification Section */}
-        <section className="pt-2">
-          <SmartContractTelemetry
-            humanOwner={nullifierHash}
-            refreshTrigger={refreshTrigger}
-          />
-        </section>
+        <footer className="pt-4 flex flex-wrap justify-between gap-4">
+          <Label>Float &middot; credit for machines that spend</Label>
+          <Label>Arc &middot; World &middot; The Graph</Label>
+        </footer>
       </main>
 
-      {/* Modals */}
       <BorrowModal
-        agent={selectedBorrowAgent}
-        isOpen={!!selectedBorrowAgent}
-        onClose={() => setSelectedBorrowAgent(null)}
+        agent={borrowAgent}
+        isOpen={!!borrowAgent}
+        onClose={() => setBorrowAgent(null)}
         onConfirmBorrow={handleConfirmBorrow}
-        maxFacilityCredit={totalAvailableCredit}
+        maxFacilityCredit={available}
       />
 
       <RepayModal
-        agent={selectedRepayAgent}
-        isOpen={!!selectedRepayAgent}
-        onClose={() => setSelectedRepayAgent(null)}
+        agent={repayAgent}
+        isOpen={!!repayAgent}
+        onClose={() => setRepayAgent(null)}
         onConfirmRepay={handleConfirmRepay}
       />
 
@@ -402,72 +342,61 @@ export default function Dashboard() {
         isOpen={isAddAgentOpen}
         onClose={() => setIsAddAgentOpen(false)}
         onAgentAdded={handleAgentAdded}
-        humanOwner={nullifierHash}
       />
 
       <RemoveAgentModal
-        agent={selectedRemoveAgent}
-        isOpen={!!selectedRemoveAgent}
-        onClose={() => setSelectedRemoveAgent(null)}
+        agent={removeAgent}
+        isOpen={!!removeAgent}
+        onClose={() => setRemoveAgent(null)}
         onConfirmRemove={handleConfirmRemove}
       />
 
       <AgentKitRegisterModal
-        agent={selectedAgentKitAgent}
-        isOpen={!!selectedAgentKitAgent}
-        onClose={() => setSelectedAgentKitAgent(null)}
+        agent={registerAgent}
+        isOpen={!!registerAgent}
+        onClose={() => setRegisterAgent(null)}
         onVerified={(updated) => {
           setAgents((prev) =>
             prev.map((a) =>
-              a.address.toLowerCase() === updated.address.toLowerCase()
-                ? { ...a, ...updated }
-                : a
+              a.address.toLowerCase() === updated.address.toLowerCase() ? { ...a, ...updated } : a
             )
           );
-          showToast(`${updated.name} verified as World-backed`);
+          showToast(`${updated.name} is World-backed`);
         }}
       />
 
       <AgentVerificationModal
-        agent={selectedDetailsAgent}
-        isOpen={!!selectedDetailsAgent}
-        onClose={() => setSelectedDetailsAgent(null)}
-        onOpenRegister={(a) => setSelectedAgentKitAgent(a)}
+        agent={detailsAgent}
+        isOpen={!!detailsAgent}
+        onClose={() => setDetailsAgent(null)}
+        onOpenRegister={(a) => setRegisterAgent(a)}
+        onRemove={(a) => setRemoveAgent(a)}
       />
 
       <X402PayModal
-        agent={selectedPayAgent}
-        isOpen={!!selectedPayAgent}
-        onClose={() => setSelectedPayAgent(null)}
+        agent={payAgent}
+        isOpen={!!payAgent}
+        onClose={() => setPayAgent(null)}
+        facilityAvailable={available}
         onPaymentSuccess={(result) => {
           const borrowed = parseFloat(result.borrowed || "0.01");
-          // Refresh agents state with updated debt
           setAgents((prev) =>
-            prev.map((a) => {
-              if (
-                selectedPayAgent &&
-                a.address.toLowerCase() === selectedPayAgent.address.toLowerCase()
-              ) {
-                return {
-                  ...a,
-                  outstandingDebt: a.outstandingDebt + borrowed,
-                  totalBorrowed: a.totalBorrowed + borrowed,
-                };
-              }
-              return a;
-            })
+            prev.map((a) =>
+              payAgent && a.address.toLowerCase() === payAgent.address.toLowerCase()
+                ? {
+                    ...a,
+                    outstandingDebt: a.outstandingDebt + borrowed,
+                    totalBorrowed: a.totalBorrowed + borrowed,
+                  }
+                : a
+            )
           );
           setRefreshTrigger((t) => t + 1);
-          showToast(
-            `x402 payment settled via Float Overdraft ($${borrowed.toFixed(2)} USDC)!`
-          );
+          showToast(`x402 challenge settled on the overdraft (${usd(borrowed)})`);
         }}
       />
 
-      <ApiModal
-        isOpen={isApiDocsOpen}
-        onClose={() => setIsApiDocsOpen(false)}
-      />
+      <ApiModal isOpen={isApiDocsOpen} onClose={() => setIsApiDocsOpen(false)} />
     </div>
   );
 }

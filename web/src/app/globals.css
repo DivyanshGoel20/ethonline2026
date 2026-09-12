@@ -2,62 +2,473 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Float — "Waterline"
+
+   Warm paper, deep marine, one burnt accent. The facility is a tank: the
+   available-credit figure rides the surface and the drawn figure sits under
+   it. Everything else is hairlines and type.
+   ────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --bg-main: #060709;
-  --bg-surface: #0e1015;
-  --bg-surface-elevated: #14171f;
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  color-scheme: light;
+
+  --paper: #f3f0e7;
+  --sunk: #e9e5d9;
+  --band: #dfdacb;
+
+  --ink: #17150f;
+  --ink2: #5b5648;
+  --ink3: #8e8877;
+
+  --rule: #d5cfbf;
+  --hair: #e4dfd1;
+
+  --sea: #2b4a7e;
+  --sea-lift: #3d61a0;
+  --flare: #a2541f;
+  --red: #8e2f22;
+
+  --d: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --u: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --m: "Martian Mono", ui-monospace, Menlo, "SF Mono", monospace;
+}
+
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
 }
 
 body {
-  background-color: var(--bg-main);
-  color: var(--text-primary);
-  min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+  font-family: var(--u);
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Very subtle institutional background grid */
-.bg-grid-pattern {
-  background-size: 32px 32px;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+::selection {
+  background: var(--sea);
+  color: var(--paper);
 }
 
-/* Refined institutional fintech card */
-.fintech-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+:focus-visible {
+  outline: 2px solid var(--sea);
+  outline-offset: 2px;
 }
 
-.fintech-card:hover {
-  border-color: var(--border-hover);
-  background: var(--bg-surface-elevated);
-}
-
-/* Tabular figures for financial numbers */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Custom minimal scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--sunk);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 9999px;
+  background: var(--rule);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--ink3);
+}
+
+@layer components {
+  /* ── type ─────────────────────────────────────────────────────────── */
+
+  .serif {
+    font-family: var(--d);
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+  }
+
+  .mn {
+    font-family: var(--m);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lab {
+    font-family: var(--m);
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink3);
+  }
+
+  .dim {
+    color: var(--ink2);
+  }
+  .faint {
+    color: var(--ink3);
+  }
+
+  /* ── surfaces ─────────────────────────────────────────────────────── */
+
+  .panel {
+    background: var(--paper);
+    border: 1px solid var(--ink);
+  }
+
+  .panel-sunk {
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+  }
+
+  .hairline {
+    border-bottom: 1px solid var(--hair);
+  }
+
+  .rail {
+    height: 58px;
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper);
+  }
+
+  .wordmark {
+    font-family: var(--d);
+    font-size: 25px;
+    letter-spacing: -0.015em;
+  }
+
+  .wordmark-rule {
+    display: block;
+    width: 26px;
+    height: 3px;
+    background: var(--sea);
+    margin-bottom: 5px;
+  }
+
+  /* ── controls ─────────────────────────────────────────────────────── */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 14px;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink2);
+    font-family: var(--m);
+    font-size: 9.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn:hover:not(:disabled) {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+  .btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .btn-strong {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .btn-solid {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .btn-solid:hover:not(:disabled) {
+    background: var(--sea);
+    border-color: var(--sea);
+    color: var(--paper);
+  }
+
+  .btn-flare {
+    border-color: var(--flare);
+    background: var(--flare);
+    color: var(--paper);
+  }
+  .btn-flare:hover:not(:disabled) {
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+
+  .btn-danger {
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: var(--red);
+    border-color: var(--red);
+    color: var(--paper);
+  }
+
+  .btn-lg {
+    height: 44px;
+    padding: 0 22px;
+    font-size: 10.5px;
+  }
+
+  .btn-icon {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-color: transparent;
+    color: var(--ink3);
+  }
+  .btn-icon:hover:not(:disabled) {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ink);
+  }
+
+  .field {
+    width: 100%;
+    height: 42px;
+    padding: 0 14px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    font-family: var(--m);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 0.15s;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
+  .field::placeholder {
+    color: var(--ink3);
+    opacity: 0.7;
+  }
+  /* The spinner collides with the unit suffix, and these are amounts you type. */
+  .field[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  .field[type="number"]::-webkit-outer-spin-button,
+  .field[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 9px;
+    border: 1px solid var(--rule);
+    background: var(--sunk);
+    font-family: var(--m);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    color: var(--ink2);
+  }
+
+  .tab {
+    flex: 1 1 0%;
+    height: 32px;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: var(--ink3);
+    font-family: var(--m);
+    font-size: 9.5px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .tab:hover {
+    color: var(--ink);
+  }
+  .tab[data-on="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+
+  /* ── the tank ─────────────────────────────────────────────────────── */
+
+  .tank {
+    position: relative;
+    background: var(--sunk);
+    border: 1px solid var(--ink);
+    overflow: hidden;
+  }
+
+  .tank-sea {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--sea);
+    color: var(--sea);
+    transition: height 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .tank-rider {
+    position: absolute;
+    transition: bottom 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .wave {
+    position: absolute;
+    left: 0;
+    width: 200%;
+  }
+  .wave svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .wave-a {
+    top: -16px;
+    height: 19px;
+    opacity: 0.42;
+    animation: drift 12s linear infinite;
+  }
+  .wave-b {
+    top: -10px;
+    height: 15px;
+    animation: drift-back 19s linear infinite;
+  }
+
+  @keyframes drift {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  @keyframes drift-back {
+    from {
+      transform: translateX(-50%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /* ── notes ────────────────────────────────────────────────────────── */
+
+  .note {
+    border-left: 2px solid var(--sea);
+    background: var(--sunk);
+    padding: 12px 15px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink2);
+  }
+  .note-warn {
+    border-left-color: var(--flare);
+  }
+  .note-bad {
+    border-left-color: var(--red);
+    color: var(--red);
+  }
+
+  .kv {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--hair);
+  }
+  .kv:last-child {
+    border-bottom: 0;
+  }
+
+  .code {
+    display: block;
+    padding: 14px 16px;
+    background: var(--sunk);
+    border: 1px solid var(--rule);
+    font-family: var(--m);
+    font-size: 11.5px;
+    line-height: 1.75;
+    color: var(--ink);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* ── modal ────────────────────────────────────────────────────────── */
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    /* flex-start plus margin:auto on the sheet centres it without ever
+       clipping the top of a modal taller than the viewport. */
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+    background: rgba(23, 21, 15, 0.55);
+    backdrop-filter: blur(3px);
+    animation: fade 0.14s ease;
+  }
+
+  .sheet {
+    width: 100%;
+    margin: auto;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    box-shadow: 14px 14px 0 rgba(23, 21, 15, 0.14);
+    animation: rise 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+
+  .spin {
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .blip {
+    animation: blip 2.4s ease-in-out infinite;
+  }
+  @keyframes blip {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+
+  .link {
+    color: var(--sea);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .link:hover {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+
+  .row-hover {
+    transition: background 0.15s;
+  }
+  .row-hover:hover {
+    background: var(--sunk);
+  }
 }

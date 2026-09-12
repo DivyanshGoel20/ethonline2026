@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Float — Controlled USDC Credit Lines for AI Agents",
+  title: "Float — a credit line for agents that spend",
   description:
-    "Float provides AI agents with controlled USDC credit lines on Arc, verified via World Selfie Check, and indexed by The Graph.",
+    "Float opens a USDC credit line against a verified human, so their agents can keep paying when a bill lands before the balance does. Settled on Arc, gated by World, indexed by The Graph.",
 };
 
 export default function RootLayout({
@@ -13,10 +13,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="antialiased min-h-screen bg-[#090d16] text-slate-100 selection:bg-teal-500 selection:text-slate-950">
-        {children}
-      </body>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Familjen+Grotesk:wght@400;500;600&family=Martian+Mono:wght@300;400;500&display=swap"
+        />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

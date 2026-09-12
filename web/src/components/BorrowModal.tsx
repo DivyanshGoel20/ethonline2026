@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Agent } from "@/types";
-import { X, ArrowDownLeft, AlertCircle, Clock, ShieldCheck } from "lucide-react";
+import { Sheet, Field, Kv, Label, ErrorNote, usd, short } from "./ui";
 
 interface BorrowModalProps {
   agent: Agent | null;
@@ -19,8 +19,8 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
   onConfirmBorrow,
   maxFacilityCredit,
 }) => {
-  const [amount, setAmount] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,194 +32,125 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
 
   if (!isOpen || !agent) return null;
 
-  // Enforce strictly shared facility headroom across all sibling agents
-  const availableCredit =
+  const headroom =
     maxFacilityCredit !== undefined
       ? maxFacilityCredit
       : Math.max(0, agent.creditLimit - agent.outstandingDebt);
 
-  const parsedAmount = parseFloat(amount) || 0;
-  const isOverLimit = parsedAmount > availableCredit + 0.005;
+  const value = parseFloat(amount) || 0;
+  const overLimit = value > headroom + 0.005;
 
-  const originationFee = Math.round(parsedAmount * 0.01 * 1000) / 1000;
-  const initialTotalDue = Math.round((parsedAmount + originationFee) * 1000) / 1000;
-  const newDebt = Math.round((agent.outstandingDebt + initialTotalDue) * 100) / 100;
-  const remainingHeadroom = Math.max(0, Math.round((availableCredit - parsedAmount) * 100) / 100);
+  const fee = Math.round(value * 0.01 * 1000) / 1000;
+  const dueNow = Math.round((value + fee) * 1000) / 1000;
+  const left = Math.max(0, Math.round((headroom - value) * 100) / 100);
 
-  const handlePercentage = (pct: number) => {
-    const val = (availableCredit * pct).toFixed(2);
-    setAmount(val);
-    setError(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parsedAmount <= 0) {
-      setError("Please enter an amount greater than 0");
-      return;
-    }
-    if (isOverLimit) {
-      setError(`Amount exceeds available credit ($${availableCredit.toFixed(2)})`);
-      return;
-    }
+    if (value <= 0) return setError("Enter an amount above zero.");
+    if (overLimit) return setError(`That is more than the line has left (${usd(headroom)}).`);
 
-    setIsSubmitting(true);
+    setBusy(true);
     try {
-      await onConfirmBorrow(agent.address, parsedAmount);
+      await onConfirmBorrow(agent.address, value);
       onClose();
     } catch (err: any) {
-      setError(err.message || "Failed to execute borrow draw");
+      setError(err.message || "The draw did not settle.");
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-[#111115] border border-white/[0.08] rounded-xl max-w-md w-full p-5 shadow-2xl relative">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-zinc-800 flex items-center justify-center text-zinc-300">
-              <ArrowDownLeft className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-100">Draw Credit Facility</h2>
-              <p className="text-[11px] font-mono text-zinc-500">{agent.name}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300 p-1 rounded-md transition"
-          >
-            <X className="w-4 h-4" />
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      title="Draw on the line"
+      subtitle={`${agent.name} · ${short(agent.address)}`}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="btn">
+            Cancel
           </button>
+          <button
+            type="submit"
+            form="borrow-form"
+            disabled={busy || value <= 0 || overLimit}
+            className="btn btn-solid"
+          >
+            {busy ? "Settling on Arc…" : "Confirm draw"}
+          </button>
+        </>
+      }
+    >
+      <div className="panel-sunk flex">
+        <div className="flex-1 px-4 py-3.5" style={{ borderRight: "1px solid var(--rule)" }}>
+          <Label>Line has left</Label>
+          <div className="mn mt-1.5" style={{ fontSize: 20, color: "var(--sea)" }}>
+            {usd(headroom)}
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Shared Facility Headroom Context */}
-          <div className="p-3 rounded-lg bg-zinc-900/60 border border-white/[0.04] flex items-center justify-between text-xs font-mono">
-            <div>
-              <div className="text-zinc-500 text-[10px] uppercase">Shared Facility Headroom</div>
-              <div className="text-sm font-semibold text-emerald-400 mt-0.5">
-                ${availableCredit.toFixed(2)} USDC
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-zinc-500 text-[10px] uppercase">Agent Current Debt</div>
-              <div className="text-sm font-medium text-zinc-300 mt-0.5">
-                ${agent.outstandingDebt.toFixed(2)} USDC
-              </div>
-            </div>
+        <div className="flex-1 px-4 py-3.5">
+          <Label>{agent.name} owes</Label>
+          <div className="mn mt-1.5" style={{ fontSize: 20 }}>
+            {usd(agent.outstandingDebt)}
           </div>
-
-          {/* Amount Input */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-mono text-zinc-400 uppercase">Draw Amount (USDC)</label>
-              <div className="flex gap-1.5">
-                {[0.25, 0.5, 1.0].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    onClick={() => handlePercentage(pct)}
-                    className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-mono text-[10px] transition"
-                  >
-                    {pct === 1.0 ? "MAX" : `${pct * 100}%`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative">
-              <input
-                type="number"
-                step="any"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value);
-                  setError(null);
-                }}
-                autoFocus
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-white/[0.08] text-zinc-100 font-mono text-base focus:outline-none focus:border-zinc-500 transition tabular-nums"
-              />
-              <span className="absolute right-3.5 top-2.5 text-xs font-mono text-zinc-500">USDC</span>
-            </div>
-          </div>
-
-          {/* Dual-Fee and 7-Day Maturity Terms */}
-          <div className="p-3 rounded-lg bg-zinc-950/80 border border-white/[0.05] space-y-2 text-xs">
-            <div className="flex items-center justify-between font-mono text-[11px] text-zinc-400">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
-                Origination Fee:
-              </span>
-              <span className="text-zinc-200">1.0% upfront</span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-[11px] text-zinc-400">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                Daily Interest:
-              </span>
-              <span className="text-zinc-200">0.05% / day</span>
-            </div>
-            <div className="flex items-center justify-between font-mono text-[11px] text-zinc-400">
-              <span>Max Maturity Window:</span>
-              <span className="text-emerald-400 font-semibold">Strict 7 Days</span>
-            </div>
-          </div>
-
-          {/* Breakdown / Impact */}
-          {parsedAmount > 0 && (
-            <div className="p-3 rounded-lg bg-zinc-950/70 border border-white/[0.04] space-y-1.5 text-xs font-mono">
-              <div className="flex justify-between text-zinc-400">
-                <span>Disbursed to Wallet</span>
-                <span className="text-zinc-200">${parsedAmount.toFixed(2)} USDC</span>
-              </div>
-              <div className="flex justify-between text-zinc-400">
-                <span>1.0% Origination Fee</span>
-                <span className="text-amber-400">+${originationFee.toFixed(2)} USDC</span>
-              </div>
-              <div className="border-t border-white/[0.05] pt-1 flex justify-between text-zinc-400">
-                <span>Initial Total Due</span>
-                <span className="text-white font-medium">${initialTotalDue.toFixed(2)} USDC</span>
-              </div>
-              <div className="flex justify-between text-zinc-400">
-                <span>Remaining Headroom</span>
-                <span className={remainingHeadroom === 0 ? "text-amber-400" : "text-zinc-200"}>
-                  ${remainingHeadroom.toFixed(2)} USDC
-                </span>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-center gap-1.5 text-xs text-rose-400 font-mono">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2 px-3 rounded-lg border border-white/[0.08] bg-transparent hover:bg-zinc-800 text-zinc-300 text-xs font-medium transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || parsedAmount <= 0 || isOverLimit}
-              className="flex-1 py-2 px-3 rounded-lg bg-zinc-100 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed text-zinc-950 text-xs font-medium transition shadow-sm"
-            >
-              {isSubmitting ? "Settling on Arc..." : "Confirm Draw"}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
-    </div>
+
+      <form id="borrow-form" onSubmit={submit}>
+        <Field
+          label="Amount"
+          suffix="USDC"
+          right={
+            <div className="flex gap-1.5">
+              {[0.25, 0.5, 1].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => {
+                    setAmount((headroom * pct).toFixed(2));
+                    setError(null);
+                  }}
+                  className="btn"
+                  style={{ height: 22, padding: "0 8px", fontSize: 8.5 }}
+                >
+                  {pct === 1 ? "Max" : `${pct * 100}%`}
+                </button>
+              ))}
+            </div>
+          }
+        >
+          <input
+            type="number"
+            step="any"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setError(null);
+            }}
+            autoFocus
+            className="field"
+            style={{ paddingRight: 56 }}
+          />
+        </Field>
+      </form>
+
+      {value > 0 && (
+        <div>
+          <Kv k="Lands in the agent wallet" v={usd(value)} />
+          <Kv k="Origination, 1%" v={`+ ${usd(fee)}`} tone="flare" />
+          <Kv k="Owed immediately" v={usd(dueNow)} />
+          <Kv k="Line left afterwards" v={usd(left)} tone={left === 0 ? "flare" : "faint"} />
+        </div>
+      )}
+
+      <div className="note">
+        Interest runs at 0.05% a day and this tranche is due in full within 7 days. Repayments clear
+        the oldest tranche first.
+      </div>
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+    </Sheet>
   );
 };

@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { Agent } from "@/types";
-import { X, ArrowUpRight, AlertCircle, Zap, ShieldCheck, ExternalLink } from "lucide-react";
 import { parseUnits } from "viem";
+import { Sheet, Field, Kv, Label, ErrorNote, usd, short } from "./ui";
+
+/** Facility operator treasury on Arc testnet. */
+const TREASURY = "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3";
 
 interface RepayModalProps {
   agent: Agent | null;
@@ -18,8 +21,8 @@ export const RepayModal: React.FC<RepayModalProps> = ({
   onClose,
   onConfirmRepay,
 }) => {
-  const [amount, setAmount] = useState<string>("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useBrowserWallet, setUseBrowserWallet] = useState(false);
 
@@ -27,217 +30,133 @@ export const RepayModal: React.FC<RepayModalProps> = ({
     if (isOpen && agent) {
       setAmount(agent.outstandingDebt.toFixed(2));
       setError(null);
-      // Auto-detect browser wallet if not autonomous
-      if (typeof window !== "undefined" && (window as any).ethereum && !agent.isAutonomous) {
-        setUseBrowserWallet(true);
-      } else {
-        setUseBrowserWallet(false);
-      }
+      setUseBrowserWallet(
+        typeof window !== "undefined" && !!(window as any).ethereum && !agent.isAutonomous
+      );
     }
   }, [isOpen, agent]);
 
   if (!isOpen || !agent) return null;
 
-  const parsedAmount = parseFloat(amount) || 0;
-  // Precision-safe comparison: allow +0.005 epsilon tolerance for floating-point math
-  const isOverDebt = parsedAmount > agent.outstandingDebt + 0.005;
-  const remainingDebt = Math.max(0, Math.round((agent.outstandingDebt - parsedAmount) * 100) / 100);
+  const value = parseFloat(amount) || 0;
+  const overDebt = value > agent.outstandingDebt + 0.005;
+  const remaining = Math.max(0, Math.round((agent.outstandingDebt - value) * 100) / 100);
 
-  // Approximate principal vs origination fee breakdown
-  const estOriginationFee = Math.round((parsedAmount * (0.01 / 1.01)) * 1000) / 1000;
-  const estPrincipal = Math.max(0, Math.round((parsedAmount - estOriginationFee) * 1000) / 1000);
+  // Origination was folded into the debt at draw time, so back it out for display.
+  const feePart = Math.round(value * (0.01 / 1.01) * 1000) / 1000;
+  const principalPart = Math.max(0, Math.round((value - feePart) * 1000) / 1000);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parsedAmount <= 0) {
-      setError("Please enter an amount greater than 0");
-      return;
-    }
-    if (isOverDebt) {
-      setError(`Repayment exceeds total outstanding debt ($${agent.outstandingDebt.toFixed(2)})`);
-      return;
-    }
+    if (value <= 0) return setError("Enter an amount above zero.");
+    if (overDebt) return setError(`${agent.name} only owes ${usd(agent.outstandingDebt)}.`);
 
-    setIsSubmitting(true);
+    setBusy(true);
     setError(null);
 
     try {
-      let clientTxHash: string | undefined = undefined;
+      let txHash: string | undefined;
 
-      // If user chooses browser wallet payment on Arc Testnet
       if (useBrowserWallet && typeof window !== "undefined" && (window as any).ethereum) {
         const ethereum = (window as any).ethereum;
-        const accounts = await ethereum.request({ method: "eth_requestAccounts" });
-        const fromAccount = accounts[0];
-
-        // Facility Operator Treasury
-        const facilityTreasury = "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3";
-        const valueHex = "0x" + parseUnits(parsedAmount.toFixed(6), 18).toString(16);
-
-        clientTxHash = await ethereum.request({
+        const [from] = await ethereum.request({ method: "eth_requestAccounts" });
+        txHash = await ethereum.request({
           method: "eth_sendTransaction",
           params: [
             {
-              from: fromAccount,
-              to: facilityTreasury,
-              value: valueHex,
+              from,
+              to: TREASURY,
+              value: "0x" + parseUnits(value.toFixed(6), 18).toString(16),
             },
           ],
         });
       }
 
-      // Safe clamp: ensure we never submit more than the stored outstandingDebt
-      const effectiveAmount = Math.min(parsedAmount, agent.outstandingDebt);
-      await onConfirmRepay(agent.address, effectiveAmount, clientTxHash);
+      await onConfirmRepay(agent.address, Math.min(value, agent.outstandingDebt), txHash);
       onClose();
     } catch (err: any) {
       console.error("[RepayModal] Submission error:", err);
-      setError(err.shortMessage || err.message || "Failed to settle repayment");
+      setError(err.shortMessage || err.message || "The repayment did not settle.");
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-[#111115] border border-white/[0.08] rounded-xl max-w-md w-full p-5 shadow-2xl relative">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-zinc-800 flex items-center justify-center text-zinc-300">
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-zinc-100">Repay Credit Facility</h2>
-              <p className="text-[11px] font-mono text-zinc-500">{agent.name}</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-500 hover:text-zinc-300 p-1 rounded-md transition"
-          >
-            <X className="w-4 h-4" />
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      title="Settle"
+      subtitle={`${agent.name} · ${short(agent.address)}`}
+      footer={
+        <>
+          <button type="button" onClick={onClose} className="btn">
+            Cancel
           </button>
+          <button
+            type="submit"
+            form="repay-form"
+            disabled={busy || value <= 0 || overDebt}
+            className="btn btn-solid"
+          >
+            {busy ? "Settling on Arc…" : "Confirm repayment"}
+          </button>
+        </>
+      }
+    >
+      <div className="panel-sunk flex items-center justify-between gap-4 px-4 py-3.5">
+        <div>
+          <Label>Outstanding</Label>
+          <div className="mn mt-1.5" style={{ fontSize: 20 }}>
+            {usd(agent.outstandingDebt)}
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Debt Context */}
-          <div className="p-3 rounded-lg bg-zinc-900/60 border border-white/[0.04] flex items-center justify-between text-xs font-mono">
-            <div>
-              <div className="text-zinc-500 text-[10px] uppercase">Outstanding Debt</div>
-              <div className="text-sm font-semibold text-zinc-100 mt-0.5">
-                ${agent.outstandingDebt.toFixed(2)} USDC
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setAmount(agent.outstandingDebt.toFixed(2));
-                setError(null);
-              }}
-              className="text-[11px] text-zinc-400 hover:text-white px-2 py-1 rounded bg-zinc-800 transition"
-            >
-              Pay Full Debt
-            </button>
-          </div>
-
-          {/* Amount Input */}
-          <div>
-            <label className="block text-xs font-mono text-zinc-400 uppercase mb-1.5">
-              Repayment Amount (USDC)
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                step="any"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value);
-                  setError(null);
-                }}
-                autoFocus
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-white/[0.08] text-zinc-100 font-mono text-base focus:outline-none focus:border-zinc-500 transition tabular-nums"
-              />
-              <span className="absolute right-3.5 top-2.5 text-xs font-mono text-zinc-500">USDC</span>
-            </div>
-          </div>
-
-          {/* Real On-Chain Settlement Mode */}
-          <div className="p-3 rounded-lg bg-zinc-950/80 border border-white/[0.05] space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 text-zinc-300 font-medium">
-                {agent.isAutonomous ? (
-                  <>
-                    <Zap className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Autonomous Self-Signing</span>
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Real Arc Settlement</span>
-                  </>
-                )}
-              </div>
-              <span className="text-[10px] font-mono text-zinc-500">Arc Testnet (5042002)</span>
-            </div>
-            <p className="text-[11px] text-zinc-400 leading-relaxed">
-              {agent.isAutonomous
-                ? "This agent signs with its own on-chain wallet. Real native USDC will be deducted directly from its address on Arc Testnet."
-                : "Real USDC tokens are transferred on Arc Testnet to settle your credit facility and restore available headroom."}
-            </p>
-          </div>
-
-          {/* Impact preview */}
-          {parsedAmount > 0 && (
-            <div className="p-3 rounded-lg bg-zinc-950/70 border border-white/[0.04] space-y-1.5 text-xs font-mono">
-              <div className="flex justify-between text-zinc-400">
-                <span>Principal Settled</span>
-                <span className="text-zinc-200">${estPrincipal.toFixed(2)} USDC</span>
-              </div>
-              <div className="flex justify-between text-zinc-400">
-                <span>Interest & Origination Fee</span>
-                <span className="text-amber-400">${estOriginationFee.toFixed(2)} USDC</span>
-              </div>
-              <div className="border-t border-white/[0.05] pt-1 flex justify-between text-zinc-400">
-                <span>Remaining Debt</span>
-                <span className="text-zinc-200">${remainingDebt.toFixed(2)} USDC</span>
-              </div>
-              <div className="flex justify-between text-zinc-400">
-                <span>Restored Headroom</span>
-                <span className="text-emerald-400">
-                  +${Math.min(agent.outstandingDebt, parsedAmount).toFixed(2)} USDC
-                </span>
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-center gap-1.5 text-xs text-rose-400 font-mono">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2 px-3 rounded-lg border border-white/[0.08] bg-transparent hover:bg-zinc-800 text-zinc-300 text-xs font-medium transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting || parsedAmount <= 0 || isOverDebt}
-              className="flex-1 py-2 px-3 rounded-lg bg-zinc-100 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed text-zinc-950 text-xs font-medium transition shadow-sm"
-            >
-              {isSubmitting ? "Settling on Arc..." : "Confirm Repayment"}
-            </button>
-          </div>
-        </form>
+        <button
+          type="button"
+          onClick={() => {
+            setAmount(agent.outstandingDebt.toFixed(2));
+            setError(null);
+          }}
+          className="btn"
+        >
+          Pay it all
+        </button>
       </div>
-    </div>
+
+      <form id="repay-form" onSubmit={submit}>
+        <Field label="Amount" suffix="USDC">
+          <input
+            type="number"
+            step="any"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setError(null);
+            }}
+            autoFocus
+            className="field"
+            style={{ paddingRight: 56 }}
+          />
+        </Field>
+      </form>
+
+      {value > 0 && (
+        <div>
+          <Kv k="Principal cleared" v={usd(principalPart)} />
+          <Kv k="Interest and origination" v={usd(feePart)} tone="flare" />
+          <Kv k="Still owed afterwards" v={usd(remaining)} />
+          <Kv k="Headroom restored" v={`+ ${usd(Math.min(agent.outstandingDebt, value))}`} tone="sea" />
+        </div>
+      )}
+
+      <div className="note">
+        {agent.isAutonomous
+          ? "This agent signs for itself. Real USDC leaves its own Arc address."
+          : "Real USDC moves on Arc testnet to clear the facility and restore the line."}
+      </div>
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+    </Sheet>
   );
 };

@@ -2,112 +2,114 @@
 
 import React from "react";
 import { CreditStats as CreditStatsType } from "@/types";
+import { Wave, Label, usd } from "./ui";
+
+const FACILITY_CONTRACT = "0xAa2d23bAC7b6f9b4ca2737252F924b3F485E0686";
+const TICKS = [0, 25, 50, 75, 100];
 
 interface CreditStatsProps {
   stats: CreditStatsType;
+  facilityLimit?: number;
 }
 
-export const CreditStats: React.FC<CreditStatsProps> = ({ stats }) => {
-  const facilityLimit = 10;
-  const outstanding = stats.totalOutstandingDebt;
-  const available = Math.max(0, facilityLimit - outstanding);
-  const utilizationRatio = Math.min(
-    100,
-    Math.round((outstanding / facilityLimit) * 100)
-  );
+/**
+ * The waterline.
+ *
+ * The available-credit figure is positioned against the surface of the water,
+ * not against the frame, so drawing on the line visibly pushes it up. The
+ * drawn figure lives inside the water and fades out when there is too little
+ * water to hold it. The scale sits outside the tank, as a ruler beside it, so
+ * the water can run the full width.
+ */
+export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit = 10 }) => {
+  const drawn = stats.totalOutstandingDebt;
+  const available = Math.max(0, facilityLimit - drawn);
+  const util = Math.max(0, Math.min(100, (drawn / facilityLimit) * 100));
+
+  // Keep the figure inside the tank once the water gets high.
+  const rider = Math.min(util, 52);
 
   return (
-    <div className="fintech-card rounded-2xl p-6 sm:p-8 relative overflow-hidden">
-      {/* Background radial accent glow - ultra restrained */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/[0.02] rounded-full blur-3xl pointer-events-none" />
+    <section>
+      <div className="flex items-stretch gap-3 sm:gap-4">
+        <div className="tank flex-1 min-w-0 h-[260px] sm:h-[310px]">
+          {/* gauge rules */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(to top, transparent 0, transparent 30px, var(--band) 30px, var(--band) 31px)",
+            }}
+          />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
-        {/* Main Hero Numbers */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="flex flex-wrap items-baseline gap-8 sm:gap-12">
-            {/* 1. Available Credit */}
-            <div>
-              <div className="text-xs font-medium text-zinc-400 tracking-wide">
-                Available Credit
-              </div>
-              <div className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-white tracking-tight tabular-nums mt-1 font-sans">
-                ${available.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div className="text-[11px] text-zinc-500 mt-1">
-                Settled on Arc Testnet in USDC
-              </div>
-            </div>
-
-            {/* 2. Outstanding Debt */}
-            <div>
-              <div className="text-xs font-medium text-zinc-400 tracking-wide">
-                Outstanding
-              </div>
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-zinc-300 tracking-tight tabular-nums mt-1 font-sans">
-                ${outstanding.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div className="text-[11px] text-zinc-500 mt-1">
-                Across all linked agents
-              </div>
+          <div className="tank-sea" style={{ height: `${util.toFixed(2)}%` }}>
+            <Wave />
+            <div
+              className="absolute left-7 sm:left-10 bottom-5 flex items-baseline gap-3 transition-opacity duration-500"
+              style={{ color: "var(--paper)", opacity: util >= 15 ? 1 : 0 }}
+            >
+              <span
+                className="mn"
+                style={{
+                  fontSize: 9,
+                  letterSpacing: "0.22em",
+                  textTransform: "uppercase",
+                  opacity: 0.72,
+                }}
+              >
+                Drawn
+              </span>
+              <span className="serif" style={{ fontSize: 28 }}>
+                {usd(drawn)}
+              </span>
             </div>
           </div>
 
-          {/* Subtle Utilization Bar */}
-          <div className="space-y-2 max-w-xl">
-            <div className="flex items-center justify-between text-xs text-zinc-400">
-              <span>Facility Utilization</span>
-              <span className="font-mono text-zinc-400">{utilizationRatio}%</span>
-            </div>
-            <div className="w-full h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-400 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${Math.max(utilizationRatio, 1)}%` }}
-              />
+          <div
+            className="tank-rider left-7 sm:left-10"
+            style={{ bottom: `calc(${rider.toFixed(2)}% + 22px)` }}
+          >
+            <Label className="mb-1">Available to draw</Label>
+            <div
+              className="serif"
+              style={{ fontSize: "clamp(52px, 7vw, 86px)", lineHeight: 0.85, letterSpacing: "-0.03em" }}
+            >
+              {usd(available)}
             </div>
           </div>
         </div>
 
-        {/* Secondary Metrics Column */}
-        <div className="lg:col-span-4 lg:border-l lg:border-white/[0.06] lg:pl-8 space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-            <div>
-              <div className="text-[11px] text-zinc-500 font-medium">Human Facility Limit</div>
-              <div className="text-sm font-semibold text-zinc-200 mt-0.5 tabular-nums">
-                ${facilityLimit.toFixed(2)} USDC
-              </div>
+        {/* the ruler */}
+        <div className="relative w-[68px] sm:w-[76px] shrink-0">
+          {TICKS.map((pct) => (
+            <div
+              key={pct}
+              className="absolute left-0 right-0 flex items-center gap-2 translate-y-1/2"
+              style={{ bottom: `${pct}%` }}
+            >
+              <span style={{ display: "block", width: 9, height: 1, background: "var(--ink3)" }} />
+              <span className="mn faint" style={{ fontSize: 9 }}>
+                {usd((facilityLimit * pct) / 100)}
+              </span>
             </div>
-
-            <div>
-              <div className="text-[11px] text-zinc-500 font-medium">Cumulative Repaid</div>
-              <div className="text-sm font-semibold text-emerald-400 mt-0.5 tabular-nums">
-                ${stats.totalRepaid.toFixed(2)} USDC
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[11px] text-zinc-500 font-medium">Connected Agents</div>
-              <div className="text-sm font-semibold text-zinc-300 mt-0.5 tabular-nums">
-                {stats.activeAgentsCount} {stats.activeAgentsCount === 1 ? "agent" : "agents"}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[11px] text-zinc-500 font-medium">Arc Facility Contract</div>
-              <div className="text-[11px] font-mono text-zinc-400 mt-0.5 flex items-center gap-1">
-                <span>0xAa2d...0686</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[11px] text-zinc-500 font-medium">Facility Standing</div>
-              <div className="text-sm font-semibold text-emerald-400 mt-0.5 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Good Standing</span>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
-    </div>
+
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mt-3.5">
+        <span className="mn faint" style={{ fontSize: 9.5 }}>
+          {usd(facilityLimit)} facility &middot; 1% origination &middot; 0.05% per day &middot; 7-day term
+        </span>
+        <a
+          className="mn faint hover:text-[color:var(--ink)] transition-colors"
+          style={{ fontSize: 9.5 }}
+          href={`https://testnet.arcscan.app/address/${FACILITY_CONTRACT}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          0xAa2d&hellip;0686 &middot; Arc testnet
+        </a>
+      </div>
+    </section>
   );
 };
