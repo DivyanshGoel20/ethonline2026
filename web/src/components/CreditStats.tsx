@@ -29,6 +29,11 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
   // Keep the figure inside the tank once the water gets high.
   const rider = Math.min(util, 52);
 
+  // The drawn figure lives in the water, so it can only live there while there
+  // is enough water to contain it. Below that it rides with the available
+  // figure instead of poking out through the surface.
+  const deep = util >= 20;
+
   return (
     <section>
       <div className="flex items-stretch gap-3 sm:gap-4">
@@ -45,8 +50,8 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
           <div className="tank-sea" style={{ height: `${util.toFixed(2)}%` }}>
             <Wave />
             <div
-              className="absolute left-7 sm:left-10 bottom-5 flex items-baseline gap-3 transition-opacity duration-500"
-              style={{ color: "var(--paper)", opacity: util >= 15 ? 1 : 0 }}
+              className="absolute left-7 sm:left-10 bottom-4 flex items-baseline gap-3 transition-opacity duration-500"
+              style={{ color: "var(--paper)", opacity: deep ? 1 : 0 }}
             >
               <span
                 className="mn"
@@ -59,7 +64,7 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
               >
                 Drawn
               </span>
-              <span className="serif" style={{ fontSize: 28 }}>
+              <span className="serif" style={{ fontSize: "clamp(22px, 3.4vw, 28px)" }}>
                 {usd(drawn)}
               </span>
             </div>
@@ -76,11 +81,17 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
             >
               {usd(available)}
             </div>
+            {!deep && drawn > 0 && (
+              <div className="mn faint mt-2.5" style={{ fontSize: 10 }}>
+                {usd(drawn)} drawn
+              </div>
+            )}
           </div>
         </div>
 
-        {/* the ruler */}
-        <div className="relative w-[68px] sm:w-[76px] shrink-0">
+        {/* the ruler. Hidden on a phone: it would cost a quarter of the tank
+            to restate what the facility line under it already says. */}
+        <div className="relative hidden sm:block sm:w-[76px] shrink-0">
           {TICKS.map((pct) => (
             <div
               key={pct}

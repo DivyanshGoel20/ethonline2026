@@ -471,4 +471,17 @@ body {
   .row-hover:hover {
     background: var(--sunk);
   }
+
+  /* 32px is a mouse target. Thumbs need more, and on a phone there is room. */
+  @media (max-width: 640px) {
+    .btn {
+      height: 40px;
+      padding: 0 16px;
+    }
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+    }
+  }
 }

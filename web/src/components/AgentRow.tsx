@@ -93,7 +93,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
       </div>
 
       <div className="flex items-baseline gap-8 lg:gap-6">
-        <div className="text-right" style={{ width: COL_NUM }}>
+        <div className="text-left lg:text-right" style={{ width: COL_NUM }}>
           <Label className="lg:hidden mb-1">Wallet</Label>
           <span
             className="mn"
@@ -103,7 +103,7 @@ export const AgentRow: React.FC<AgentRowProps> = ({
           </span>
         </div>
 
-        <div className="text-right" style={{ width: COL_NUM }}>
+        <div className="text-left lg:text-right" style={{ width: COL_NUM }}>
           <Label className="lg:hidden mb-1">Owes</Label>
           <span
             className="mn"
