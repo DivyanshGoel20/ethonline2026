@@ -85,9 +85,10 @@ interface TelemetryData {
 
 interface SmartContractTelemetryProps {
   humanOwner?: string | null;
+  refreshTrigger?: number;
 }
 
-export const SmartContractTelemetry: React.FC<SmartContractTelemetryProps> = ({ humanOwner }) => {
+export const SmartContractTelemetry: React.FC<SmartContractTelemetryProps> = ({ humanOwner, refreshTrigger = 0 }) => {
   const [data, setData] = useState<TelemetryData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -120,7 +121,11 @@ export const SmartContractTelemetry: React.FC<SmartContractTelemetryProps> = ({ 
 
   useEffect(() => {
     fetchTelemetry();
-  }, [humanOwner]);
+    const interval = setInterval(() => {
+      fetchTelemetry(false);
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [humanOwner, refreshTrigger]);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);

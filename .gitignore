@@ -29,6 +29,7 @@ dist/
 build/
 
 docs/
+scripts/
 
 # Debug logs
 npm-debug.log*

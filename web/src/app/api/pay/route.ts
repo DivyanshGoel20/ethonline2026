@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FloatSignerTS } from "@/lib/floatSigner";
+import { getAgentPrivateKey } from "@/lib/agentKeys";
+import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,13 +22,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const effectiveAgentKey =
+      agentPrivateKey || getAgentPrivateKey(agentAddress) || undefined;
+
     const floatSigner = new FloatSignerTS();
 
     const result = await floatSigner.pay(
       url,
       {
         agentAddress,
-        agentPrivateKey,
+        agentPrivateKey: effectiveAgentKey,
         humanProfileId,
       },
       {
@@ -34,6 +39,8 @@ export async function POST(req: NextRequest) {
         body: reqBody,
       }
     );
+
+    invalidateTelemetryCache(humanProfileId);
 
     return NextResponse.json(result);
   } catch (error: any) {

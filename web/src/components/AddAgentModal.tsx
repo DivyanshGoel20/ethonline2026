@@ -19,10 +19,14 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
 }) => {
   const [name, setName] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
+  const [privateKey, setPrivateKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const isPreconfigured =
+    walletAddress.trim().toLowerCase() === "0xa5509d881a4632591117bcb7145ec9e80c015dc3";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +56,7 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
           name: trimmedName,
           walletAddress: trimmedAddress,
           humanOwner: humanOwner || "anonymous_human",
+          privateKey: privateKey.trim() || undefined,
         }),
       });
 
@@ -64,6 +69,7 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
       onAgentAdded(data.agent);
       setName("");
       setWalletAddress("");
+      setPrivateKey("");
       onClose();
     } catch (err: any) {
       setError(err.message || "Failed to add agent.");
@@ -109,7 +115,7 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
             <label className="text-xs font-mono text-zinc-400">Agent Name</label>
             <input
               type="text"
-              placeholder="e.g. Research Agent"
+              placeholder="e.g. Autonomous Research Agent"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-white/[0.08] text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
@@ -120,14 +126,43 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
             <label className="text-xs font-mono text-zinc-400">Agent Wallet Address</label>
             <input
               type="text"
-              placeholder="0x123..."
+              placeholder="0xA5509d881A4632591117bCB7145EC9e80C015DC3"
               value={walletAddress}
               onChange={(e) => setWalletAddress(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-white/[0.08] text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
             />
-            <p className="text-[10px] font-mono text-zinc-500 flex items-center justify-between">
-              <span>Must be an active EVM address on Arc Testnet.</span>
-              <span className="text-zinc-400">AgentKit verified</span>
+            <div className="flex items-center justify-between text-[10px] font-mono">
+              <span className="text-zinc-500">Active EVM address on Arc Testnet</span>
+              {isPreconfigured ? (
+                <span className="text-amber-400 font-semibold flex items-center gap-1">
+                  ⚡ Autonomous Signer Ready
+                </span>
+              ) : (
+                <span className="text-zinc-400">AgentKit verified</span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-mono text-zinc-400">
+                Agent Private Key <span className="text-zinc-600">(Optional)</span>
+              </label>
+              {isPreconfigured && (
+                <span className="text-[10px] font-mono text-emerald-400">
+                  Pre-configured in Keystore
+                </span>
+              )}
+            </div>
+            <input
+              type="password"
+              placeholder={isPreconfigured ? "••••••••••••••••••••••••••••••••" : "0x... (Enables autonomous transaction signing)"}
+              value={privateKey}
+              onChange={(e) => setPrivateKey(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-white/[0.08] text-xs font-mono text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
+            />
+            <p className="text-[10px] font-mono text-zinc-500">
+              Allows the agent to sign x402 nanopayments and Arc Testnet transactions autonomously.
             </p>
           </div>
 

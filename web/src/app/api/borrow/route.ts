@@ -8,6 +8,7 @@ import {
 import { createLoan } from "@/lib/loanStore";
 import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
 import { executeOnChainDrawdown } from "@/lib/facilityContract";
+import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 
 export async function POST(req: NextRequest) {
   try {
@@ -124,6 +125,8 @@ export async function POST(req: NextRequest) {
       agentAddress: agent.address,
       humanOwner: agent.humanOwner,
     };
+
+    invalidateTelemetryCache(agent.humanOwner);
 
     return NextResponse.json({
       ...response,

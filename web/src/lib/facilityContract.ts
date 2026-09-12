@@ -207,10 +207,56 @@ export const FLOAT_CREDIT_FACILITY_ABI = [
   },
 ] as const;
 
+export function getArcTransport() {
+  const customFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    let attempts = 0;
+    const maxAttempts = 6;
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        const response = await fetch(input, init);
+        if (response.status === 429 || response.status === 503) {
+          const delay = attempts * 1200 + Math.floor(Math.random() * 500);
+          console.warn(`[ArcTransport] RPC status ${response.status}. Backing off ${delay}ms (attempt ${attempts}/${maxAttempts})...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        const clone = response.clone();
+        const text = await clone.text().catch(() => "");
+        if (
+          text.includes("Request exceeds defined limit") ||
+          text.includes("rate limit") ||
+          text.includes("limit exceeded") ||
+          text.includes("Too Many Requests")
+        ) {
+          const delay = attempts * 1500 + Math.floor(Math.random() * 500);
+          console.warn(`[ArcTransport] RPC throttled: "${text.substring(0, 80)}". Backing off ${delay}ms (attempt ${attempts}/${maxAttempts})...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+
+        return response;
+      } catch (err: any) {
+        if (attempts >= maxAttempts) throw err;
+        const delay = attempts * 1000;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+    return fetch(input, init);
+  };
+
+  return http(process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network", {
+    fetchFn: customFetch,
+    retryCount: 5,
+    retryDelay: 1500,
+  });
+}
+
 export function getPublicClient() {
   return createPublicClient({
     chain: arcTestnetChain,
-    transport: http(),
+    transport: getArcTransport(),
   });
 }
 
@@ -291,12 +337,67 @@ export async function executeOnChainDrawdown(params: {
   const walletClient = createWalletClient({
     account,
     chain: arcTestnetChain,
-    transport: http(process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network"),
+    transport: getArcTransport(),
   });
 
   const profileId = computeProfileId(params.humanOwner);
   const amountUnits = parseUnits(params.amountUsdc.toFixed(6), 6);
 
+  // 1. Ensure Profile exists on Arc Testnet
+  try {
+    const profile = (await publicClient
+      .readContract({
+        address: FLOAT_CREDIT_FACILITY_ADDRESS,
+        abi: FLOAT_CREDIT_FACILITY_ABI,
+        functionName: "getProfile",
+        args: [profileId],
+      })
+      .catch(() => null)) as any;
+
+    if (!profile || Number(profile.createdAt) === 0) {
+      console.log(`[Drawdown] Initializing on-chain profile ${profileId} on Arc Testnet...`);
+      const humanRoot = computeProfileId(params.humanOwner);
+      const createTx = await walletClient.writeContract({
+        address: FLOAT_CREDIT_FACILITY_ADDRESS,
+        abi: FLOAT_CREDIT_FACILITY_ABI,
+        functionName: "createCreditProfile",
+        args: [profileId, account.address, humanRoot, parseUnits("10", 6)],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: createTx });
+      console.log(`[Drawdown] Created profile in tx ${createTx}`);
+    }
+  } catch (profErr: any) {
+    console.warn("[Drawdown] Profile check notice:", profErr.message || profErr);
+  }
+
+  // 2. Ensure Agent is authorized for this profile on Arc Testnet
+  const isAuth = await publicClient
+    .readContract({
+      address: FLOAT_CREDIT_FACILITY_ADDRESS,
+      abi: FLOAT_CREDIT_FACILITY_ABI,
+      functionName: "isAgentAuthorized",
+      args: [profileId, params.agentAddress as `0x${string}`],
+    })
+    .catch(() => false);
+
+  if (!isAuth) {
+    console.log(`[Drawdown] Authorizing agent ${params.agentAddress} for profile ${profileId} on Arc Testnet...`);
+    try {
+      const authTx = await walletClient.writeContract({
+        address: FLOAT_CREDIT_FACILITY_ADDRESS,
+        abi: FLOAT_CREDIT_FACILITY_ABI,
+        functionName: "authorizeAgent",
+        args: [profileId, params.agentAddress as `0x${string}`],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: authTx });
+      console.log(`[Drawdown] Agent authorized on Arc Testnet in tx ${authTx}`);
+    } catch (authErr: any) {
+      console.error("[Drawdown] Agent authorization failed:", authErr.message || authErr);
+      throw new Error(`Failed to authorize agent on Arc Testnet: ${authErr.shortMessage || authErr.message}`);
+    }
+  }
+
+  // 3. Record Drawdown on Arc Testnet
   const txHash = await walletClient.writeContract({
     address: FLOAT_CREDIT_FACILITY_ADDRESS,
     abi: FLOAT_CREDIT_FACILITY_ABI,
@@ -334,7 +435,7 @@ export async function executeOnChainRepayment(params: {
   const walletClient = createWalletClient({
     account,
     chain: arcTestnetChain,
-    transport: http(process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network"),
+    transport: getArcTransport(),
   });
 
   const profileId = computeProfileId(params.humanOwner);
@@ -367,7 +468,7 @@ export async function syncAgentToContractOnChain(
   agentAddress: string,
   humanOwner: string
 ): Promise<{ txHash: string; blockNumber: number } | null> {
-  const pk = process.env.PRIVATE_KEY as `0x${string}`;
+  const pk = (process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY) as `0x${string}`;
   if (!pk) return null;
 
   try {
@@ -376,7 +477,7 @@ export async function syncAgentToContractOnChain(
     const walletClient = createWalletClient({
       account,
       chain: arcTestnetChain,
-      transport: http(process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network"),
+      transport: getArcTransport(),
     });
 
     const profileId = computeProfileId(humanOwner);
@@ -433,7 +534,7 @@ export async function ensureHumanProfileOnChain(
     const walletClient = createWalletClient({
       account,
       chain: arcTestnetChain,
-      transport: http(process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network"),
+      transport: getArcTransport(),
     });
 
     const existing = (await publicClient

@@ -200,6 +200,7 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
         body: JSON.stringify({
           url,
           agentAddress: agent.address,
+          humanProfileId: agent.humanOwner,
         }),
       });
 

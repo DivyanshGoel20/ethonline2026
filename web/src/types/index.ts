@@ -17,6 +17,7 @@ export interface Agent {
   totalRepaid: number;       // in USDC
   currentBalance: number;    // in USDC
   gatewayBalanceUSDC?: string; // Live Circle Gateway available USDC
+  isAutonomous?: boolean;      // Whether agent private key is bound for autonomous self-signing
   status: "Healthy" | "Active" | "Delinquent" | "Suspended";
   registeredAt: number;
 }

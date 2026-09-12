@@ -50,7 +50,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               {agent.name}
             </h3>
 
-            {/* Truncated Address & Explorer Link */}
+            {/* Truncated Address, Explorer Link & Signer Badge */}
             <div className="flex items-center gap-1.5 mt-0.5">
               <button
                 onClick={handleCopy}
@@ -77,6 +77,13 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               >
                 <ExternalLink className="w-3 h-3" />
               </a>
+
+              {agent.isAutonomous && (
+                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 text-[10px] font-mono flex items-center gap-1" title="Autonomous Agent Signer active">
+                  <Zap className="w-2.5 h-2.5 text-amber-400" />
+                  <span>Auto-Signer</span>
+                </span>
+              )}
             </div>
           </div>
 

@@ -5,6 +5,7 @@ import { validateArcAgentWallet } from "@/lib/arc";
 import { resolveAgentBookStatus } from "@/lib/agentKit";
 import { FloatSignerTS } from "@/lib/floatSigner";
 import { syncAgentToContractOnChain } from "@/lib/facilityContract";
+import { hasAgentPrivateKey, setAgentPrivateKey } from "@/lib/agentKeys";
 
 function sanitizeAgentForClient(agent: Agent): Agent {
   // Strip out internal agentBookHumanId to protect human privacy in UI
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
           ...agent,
           currentBalance: parseFloat(liveGw) || 0,
           gatewayBalanceUSDC: liveGw,
+          isAutonomous: hasAgentPrivateKey(agent.address),
         };
       })
     );
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, walletAddress, humanOwner } = body;
+    const { name, walletAddress, humanOwner, privateKey } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
@@ -87,6 +89,11 @@ export async function POST(req: NextRequest) {
 
     const formattedAddress = walletAddress.trim().toLowerCase() as `0x${string}`;
 
+    // If privateKey was provided, store it in agent keystore
+    if (privateKey && typeof privateKey === "string" && privateKey.trim()) {
+      setAgentPrivateKey(formattedAddress, privateKey.trim());
+    }
+
     // AgentKit AgentBook verification on World Chain
     const agentBookInfo = await resolveAgentBookStatus(formattedAddress);
 
@@ -104,6 +111,7 @@ export async function POST(req: NextRequest) {
       status: "Healthy",
       registeredAt: Date.now(),
       isWorldBacked: agentBookInfo.isWorldBacked,
+      isAutonomous: hasAgentPrivateKey(formattedAddress),
       agentBookStatus: agentBookInfo.agentBookStatus,
       agentBookHumanId: agentBookInfo.humanId || undefined,
     };

@@ -14,6 +14,7 @@ import { X402PayModal } from "@/components/X402PayModal";
 import { ApiModal } from "@/components/ApiModal";
 import { WorldAuthGate } from "@/components/WorldAuthGate";
 import { SmartContractTelemetry } from "@/components/SmartContractTelemetry";
+import { LiveTransactionFeed } from "@/components/LiveTransactionFeed";
 import { Agent, CreditStats as CreditStatsType } from "@/types";
 import { Search, Plus, Bot } from "lucide-react";
 
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "debt" | "clean">("all");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // World Verification Operator session
   const [isWorldVerified, setIsWorldVerified] = useState(false);
@@ -134,6 +136,7 @@ export default function Dashboard() {
 
 
 
+    setRefreshTrigger((t) => t + 1);
     showToast(`Drawn $${amount.toFixed(2)} USDC for ${targetAgent?.name || "Agent"}`);
   };
 
@@ -159,8 +162,7 @@ export default function Dashboard() {
       loadAgents(nullifierHash);
     }
 
-
-
+    setRefreshTrigger((t) => t + 1);
     showToast(`Settled $${amount.toFixed(2)} USDC repayment for ${targetAgent?.name || "Agent"}`);
   };
 
@@ -176,8 +178,7 @@ export default function Dashboard() {
       return [newAgent, ...prev];
     });
 
-
-
+    setRefreshTrigger((t) => t + 1);
     showToast(`Added ${newAgent.name} to Arc credit facility`);
   };
 
@@ -200,8 +201,7 @@ export default function Dashboard() {
       prev.filter((a) => a.address.toLowerCase() !== agentAddress.toLowerCase())
     );
 
-
-
+    setRefreshTrigger((t) => t + 1);
     showToast(`Disconnected ${targetAgent?.name || "Agent"} from facility`);
   };
 
@@ -351,9 +351,20 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Live On-Chain Activity & Autonomous Signer Telemetry Stream */}
+        <section>
+          <LiveTransactionFeed
+            humanOwner={nullifierHash}
+            refreshTrigger={refreshTrigger}
+          />
+        </section>
+
         {/* Live On-Chain Smart Contract Telemetry & Verification Section */}
         <section className="pt-2">
-          <SmartContractTelemetry humanOwner={nullifierHash} />
+          <SmartContractTelemetry
+            humanOwner={nullifierHash}
+            refreshTrigger={refreshTrigger}
+          />
         </section>
       </main>
 
@@ -432,6 +443,7 @@ export default function Dashboard() {
               return a;
             })
           );
+          setRefreshTrigger((t) => t + 1);
           showToast(
             `x402 payment settled via Float Overdraft ($${borrowed.toFixed(2)} USDC)!`
           );

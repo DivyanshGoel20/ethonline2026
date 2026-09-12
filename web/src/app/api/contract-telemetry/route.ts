@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchCompleteContractTelemetry } from "@/lib/facilityContract";
 import { getAllAgents } from "@/lib/agentStore";
 import { getAllLoans } from "@/lib/loanStore";
+import { getCachedTelemetry, setCachedTelemetry } from "@/lib/telemetryCache";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,16 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const humanOwner = searchParams.get("human") || undefined;
+    const cacheKey = (humanOwner || "global").toLowerCase();
+
+    // Check recent in-memory cache to prevent Arc RPC hammering
+    const cached = getCachedTelemetry(cacheKey);
+    if (cached) {
+      return NextResponse.json({
+        ...cached,
+        cached: true,
+      });
+    }
 
     // Retrieve known agents and recorded loan hashes from store to enrich telemetry
     const agents = getAllAgents();
@@ -34,7 +45,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({
+    const responsePayload = {
       success: true,
       telemetry: {
         ...telemetry,
@@ -42,7 +53,11 @@ export async function GET(req: NextRequest) {
       },
       cachedAgentsCount: agents.length,
       timestamp: Date.now(),
-    });
+    };
+
+    setCachedTelemetry(cacheKey, responsePayload);
+
+    return NextResponse.json(responsePayload);
   } catch (error: any) {
     console.error("[GET /api/contract-telemetry] Error:", error);
     return NextResponse.json(

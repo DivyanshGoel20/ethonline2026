@@ -9,6 +9,7 @@ import { createLoan } from "./loanStore";
 import { recordPayment, PaymentRecord } from "./paymentStore";
 import { FLOAT_CREDIT_FACILITY_ADDRESS } from "./arc";
 import { executeOnChainDrawdown } from "./facilityContract";
+import { getAgentPrivateKey } from "./agentKeys";
 
 export interface AgentPaymentContext {
   agentAddress: string;
@@ -189,14 +190,18 @@ export class FloatSignerTS {
       // PATH A: NORMAL AGENT PAYMENT (No Overdraft)
       // ----------------------------------------------------
       let agentClient: GatewayClient;
-      if (agentContext.agentPrivateKey) {
+      const resolvedAgentKey =
+        agentContext.agentPrivateKey ||
+        getAgentPrivateKey(agentContext.agentAddress);
+
+      if (resolvedAgentKey) {
         agentClient = new GatewayClient({
           chain: "arcTestnet",
-          privateKey: agentContext.agentPrivateKey,
+          privateKey: resolvedAgentKey,
         });
       } else {
         throw new Error(
-          `Agent ${agentContext.agentAddress} has sufficient Gateway balance ($${formattedAvailable} >= $${requestedAmountFormatted}), but agentPrivateKey was not provided to sign payment.`
+          `Agent ${agentContext.agentAddress} has sufficient Gateway balance ($${formattedAvailable} >= $${requestedAmountFormatted}), but no private key was found to sign the payment.`
         );
       }
 
