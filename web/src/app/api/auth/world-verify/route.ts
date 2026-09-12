@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWorldSelfieProof } from "@/lib/world";
+import { ensureHumanProfileOnChain } from "@/lib/facilityContract";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,10 +22,19 @@ export async function POST(req: NextRequest) {
 
     const nullifierHash =
       verification.nullifier ||
+      proofPayload.responses?.[0]?.nullifier ||
       proofPayload.nullifier ||
       proofPayload.nullifier_hash ||
-      proofPayload.responses?.[0]?.nullifier ||
       `nullifier_${Date.now()}`;
+
+    console.log("[World-Verify] Authenticated unique World ID nullifier:", nullifierHash);
+
+    // Ensure on-chain $10 credit profile exists on Arc Testnet for this human nullifier
+    try {
+      await ensureHumanProfileOnChain(nullifierHash);
+    } catch (profileErr: any) {
+      console.warn("[World-Verify] Notice provisioning on-chain profile:", profileErr.message || profileErr);
+    }
 
     return NextResponse.json({
       verified: true,

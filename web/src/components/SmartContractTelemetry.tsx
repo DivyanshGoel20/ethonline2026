@@ -83,7 +83,11 @@ interface TelemetryData {
   totalRepaymentsCount: number;
 }
 
-export const SmartContractTelemetry: React.FC = () => {
+interface SmartContractTelemetryProps {
+  humanOwner?: string | null;
+}
+
+export const SmartContractTelemetry: React.FC<SmartContractTelemetryProps> = ({ humanOwner }) => {
   const [data, setData] = useState<TelemetryData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -96,7 +100,10 @@ export const SmartContractTelemetry: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetch("/api/contract-telemetry", { cache: "no-store" });
+      const url = humanOwner
+        ? `/api/contract-telemetry?human=${encodeURIComponent(humanOwner)}`
+        : "/api/contract-telemetry";
+      const res = await fetch(url, { cache: "no-store" });
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error || "Failed to fetch on-chain contract telemetry");
@@ -113,7 +120,7 @@ export const SmartContractTelemetry: React.FC = () => {
 
   useEffect(() => {
     fetchTelemetry();
-  }, []);
+  }, [humanOwner]);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);

@@ -45,6 +45,18 @@ export default function Dashboard() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const loadAgents = (ownerHash: string) => {
+    if (!ownerHash) return;
+    fetch(`/api/agents?owner=${encodeURIComponent(ownerHash)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.agents && Array.isArray(data.agents)) {
+          setAgents(data.agents);
+        }
+      })
+      .catch((err) => console.error("[Dashboard] Error fetching agents:", err));
+  };
+
   useEffect(() => {
     // Restore session if previously verified in browser or via session query param
     const urlParams = new URLSearchParams(window.location.search);
@@ -54,20 +66,9 @@ export default function Dashboard() {
       localStorage.setItem("float_world_session", storedSession);
       setIsWorldVerified(true);
       setNullifierHash(storedSession);
+      loadAgents(storedSession);
     }
     setIsLoadingSession(false);
-
-    // Fetch real agents from store
-    fetch("/api/agents")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.agents && Array.isArray(data.agents)) {
-          setAgents(data.agents);
-        }
-      })
-      .catch((err) => console.error("[Dashboard] Error fetching agents:", err));
-
-
   }, []);
 
   // Shared aggregate credit calculation (Human-level facility of $10.00)
@@ -153,15 +154,10 @@ export default function Dashboard() {
       (a) => a.address.toLowerCase() === agentAddress.toLowerCase()
     );
 
-    // Refresh agent states from server
-    fetch("/api/agents")
-      .then((r) => r.json())
-      .then((agentData) => {
-        if (agentData.agents && Array.isArray(agentData.agents)) {
-          setAgents(agentData.agents);
-        }
-      })
-      .catch((e) => console.error("Error refreshing agents:", e));
+    // Refresh agent states from server for this human
+    if (nullifierHash) {
+      loadAgents(nullifierHash);
+    }
 
 
 
@@ -214,6 +210,7 @@ export default function Dashboard() {
     localStorage.setItem("float_world_session", hash);
     setIsWorldVerified(true);
     setNullifierHash(hash);
+    loadAgents(hash);
     showToast("Human operator verified via World Selfie Check");
   };
 
@@ -222,6 +219,10 @@ export default function Dashboard() {
     localStorage.removeItem("float_world_session");
     setIsWorldVerified(false);
     setNullifierHash(null);
+    setAgents([]);
+    if (typeof window !== "undefined") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     showToast("Signed out of World ID session", "neutral");
   };
 
@@ -352,7 +353,7 @@ export default function Dashboard() {
 
         {/* Live On-Chain Smart Contract Telemetry & Verification Section */}
         <section className="pt-2">
-          <SmartContractTelemetry />
+          <SmartContractTelemetry humanOwner={nullifierHash} />
         </section>
       </main>
 

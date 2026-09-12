@@ -51,6 +51,8 @@ export const WorldAuthGate: React.FC<WorldAuthGateProps> = ({ onVerified }) => {
     }
   };
 
+  const verifiedNullifierRef = React.useRef<string | null>(null);
+
   // Called by IDKit when World App returns the zero-knowledge proof
   const handleVerify = async (result: IDKitResult) => {
     setIsVerifying(true);
@@ -67,6 +69,11 @@ export const WorldAuthGate: React.FC<WorldAuthGateProps> = ({ onVerified }) => {
       if (!res.ok || !data.verified) {
         throw new Error(data.error || "World Selfie Check verification was rejected.");
       }
+
+      if (data.nullifierHash) {
+        verifiedNullifierRef.current = data.nullifierHash;
+        console.log("[WorldAuthGate] Verified unique nullifier:", data.nullifierHash);
+      }
     } catch (err: any) {
       console.error("[WorldAuthGate] Verify error:", err);
       setError(err.message || "Failed to verify World ID proof");
@@ -79,9 +86,12 @@ export const WorldAuthGate: React.FC<WorldAuthGateProps> = ({ onVerified }) => {
   // Called on successful verification completion
   const handleSuccess = (result: IDKitResult) => {
     const nullifier =
+      verifiedNullifierRef.current ||
       (result as any).responses?.[0]?.nullifier ||
+      (result as any).nullifier ||
       (result as any).nullifier_hash ||
       `verified_${Date.now()}`;
+    console.log("[WorldAuthGate] Logging in with World ID nullifier:", nullifier);
     onVerified(nullifier);
   };
 

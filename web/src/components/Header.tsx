@@ -47,11 +47,15 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Operator Status */}
           {isWorldVerified && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900/90 border border-white/[0.08] text-xs text-zinc-300"
-              title="Verified Human Operator Session (World Selfie Check)"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300 font-mono"
+              title={`Authenticated World ID Nullifier: ${nullifierHash || "Verified Human"}`}
             >
-              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-              <span className="text-[11px] font-medium text-zinc-300">Human Verified</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-[11px] font-medium font-sans">
+                {nullifierHash
+                  ? `Human: ${nullifierHash.slice(0, 8)}...${nullifierHash.slice(-4)}`
+                  : "Human Verified"}
+              </span>
             </div>
           )}
 

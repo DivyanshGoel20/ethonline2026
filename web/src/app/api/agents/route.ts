@@ -4,6 +4,7 @@ import { getAllAgents, addAgentToStore, getAgentsByOwner, removeAgentFromStore }
 import { validateArcAgentWallet } from "@/lib/arc";
 import { resolveAgentBookStatus } from "@/lib/agentKit";
 import { FloatSignerTS } from "@/lib/floatSigner";
+import { syncAgentToContractOnChain } from "@/lib/facilityContract";
 
 function sanitizeAgentForClient(agent: Agent): Agent {
   // Strip out internal agentBookHumanId to protect human privacy in UI
@@ -108,6 +109,13 @@ export async function POST(req: NextRequest) {
     };
 
     const saved = addAgentToStore(newAgent);
+
+    // Synchronize agent authorization and profile creation to Arc Testnet contract
+    try {
+      await syncAgentToContractOnChain(newAgent.address, newAgent.humanOwner);
+    } catch (contractErr: any) {
+      console.warn("[Agents-API] On-chain agent authorization notice:", contractErr.message || contractErr);
+    }
 
     return NextResponse.json({
       success: true,

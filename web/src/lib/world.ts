@@ -63,14 +63,27 @@ export async function verifyWorldSelfieProof(
     console.log("[World-Verify v4] API Response:", v4Response.status, JSON.stringify(v4Data));
 
     if (v4Response.ok && (v4Data.success === true || v4Data.results?.[0]?.success === true)) {
-      const nullifier = v4Data.nullifier || v4Data.results?.[0]?.nullifier;
+      const nullifier =
+        v4Data.nullifier ||
+        v4Data.results?.[0]?.nullifier ||
+        proof.responses?.[0]?.nullifier ||
+        proof.nullifier ||
+        proof.nullifier_hash;
       return { success: true, nullifier };
     }
 
     if (v4Data.results && Array.isArray(v4Data.results) && v4Data.results[0]) {
       const item = v4Data.results[0];
       if (item.success === true) {
-        return { success: true, nullifier: item.nullifier || v4Data.nullifier };
+        return {
+          success: true,
+          nullifier:
+            item.nullifier ||
+            v4Data.nullifier ||
+            proof.responses?.[0]?.nullifier ||
+            proof.nullifier ||
+            proof.nullifier_hash,
+        };
       }
       return {
         success: false,

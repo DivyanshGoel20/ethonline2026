@@ -417,6 +417,56 @@ export async function syncAgentToContractOnChain(
 }
 
 /**
+ * Ensures an on-chain credit profile exists for a World ID human operator on Arc Testnet.
+ * If the profile does not exist yet, initializes it with a $10.00 USDC credit limit.
+ */
+export async function ensureHumanProfileOnChain(
+  humanOwner: string
+): Promise<{ txHash?: string; profileId: `0x${string}` }> {
+  const profileId = computeProfileId(humanOwner);
+  const pk = (process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY) as `0x${string}`;
+  if (!pk) return { profileId };
+
+  try {
+    const account = privateKeyToAccount(pk);
+    const publicClient = getPublicClient();
+    const walletClient = createWalletClient({
+      account,
+      chain: arcTestnetChain,
+      transport: http(process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network"),
+    });
+
+    const existing = (await publicClient
+      .readContract({
+        address: FLOAT_CREDIT_FACILITY_ADDRESS,
+        abi: FLOAT_CREDIT_FACILITY_ABI,
+        functionName: "getProfile",
+        args: [profileId],
+      })
+      .catch(() => null)) as any;
+
+    if (!existing || Number(existing.createdAt) === 0) {
+      console.log(`[OnChainProfile] Provisioning $10 on-chain profile on Arc Testnet for World ID operator ${humanOwner}...`);
+      const humanRoot = computeProfileId(humanOwner);
+      const createTx = await walletClient.writeContract({
+        address: FLOAT_CREDIT_FACILITY_ADDRESS,
+        abi: FLOAT_CREDIT_FACILITY_ABI,
+        functionName: "createCreditProfile",
+        args: [profileId, account.address, humanRoot, parseUnits("10", 6)],
+      });
+      await publicClient.waitForTransactionReceipt({ hash: createTx });
+      console.log(`[OnChainProfile] Provisioned profile ${profileId} on Arc Testnet in tx ${createTx}`);
+      return { txHash: createTx, profileId };
+    }
+
+    return { profileId };
+  } catch (err: any) {
+    console.warn("[OnChainProfile] Provision notice:", err.message);
+    return { profileId };
+  }
+}
+
+/**
  * Fetches complete real-time telemetry directly from the FloatCreditFacility contract on Arc Testnet.
  */
 export async function fetchCompleteContractTelemetry(
@@ -460,11 +510,16 @@ export async function fetchCompleteContractTelemetry(
 
   // Query authorizations for known agents
   const defaultAgentsToCheck = Array.from(
-    new Set([
-      "0x36e271970fa654ef640ee150e3bd734e946c077d",
-      "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
-      ...knownAgents,
-    ].map((a) => a.toLowerCase()))
+    new Set(
+      (customHumanOwner
+        ? knownAgents
+        : [
+            "0x36e271970fa654ef640ee150e3bd734e946c077d",
+            "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
+            ...knownAgents,
+          ]
+      ).map((a) => a.toLowerCase())
+    )
   );
 
   const authorizedAgents = [];
@@ -520,6 +575,11 @@ export async function fetchCompleteContractTelemetry(
         args: [id],
       })) as any;
 
+      // Filter drawdowns for this specific human profile if querying by owner
+      if (customHumanOwner && d[1]?.toLowerCase() !== profileId.toLowerCase()) {
+        continue;
+      }
+
       const timeNum = Number(d[4] || 0);
       const amountUnits = Number(d[3] || 0);
       const statusCode = Number(d[5] || 0);
@@ -561,6 +621,11 @@ export async function fetchCompleteContractTelemetry(
         args: [id],
       })) as any;
 
+      // Filter repayments for this specific human profile if querying by owner
+      if (customHumanOwner && r[1]?.toLowerCase() !== profileId.toLowerCase()) {
+        continue;
+      }
+
       const timeNum = Number(r[5] || 0);
       const amountUnits = Number(r[4] || 0);
 
@@ -591,7 +656,7 @@ export async function fetchCompleteContractTelemetry(
       owner,
       explorerUrl: `https://testnet.arcscan.app/address/${FLOAT_CREDIT_FACILITY_ADDRESS}`,
     },
-    profile: profileData
+    profile: profileData && Number(profileData.createdAt) > 0
       ? {
           profileId,
           humanOwner: profileData.humanOwner,
@@ -611,7 +676,25 @@ export async function fetchCompleteContractTelemetry(
           createdAtTimestamp: Number(profileData.createdAt),
           createdAtIso: new Date(Number(profileData.createdAt) * 1000).toISOString(),
         }
-      : null,
+      : {
+          profileId,
+          humanOwner: humanOwner,
+          humanRoot: computeProfileId(humanOwner),
+          creditLimit: 10,
+          creditLimitRaw: "10000000",
+          outstandingDebt: 0,
+          outstandingDebtRaw: "0",
+          remainingCredit: 10,
+          remainingCreditRaw: "10000000",
+          totalBorrowed: 0,
+          totalBorrowedRaw: "0",
+          totalRepaid: 0,
+          totalRepaidRaw: "0",
+          statusCode: 1,
+          status: "Active",
+          createdAtTimestamp: Math.floor(Date.now() / 1000),
+          createdAtIso: new Date().toISOString(),
+        },
     authorizedAgents,
     drawdowns,
     repayments,
