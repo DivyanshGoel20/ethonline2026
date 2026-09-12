@@ -86,12 +86,20 @@ export const SmartContractTelemetry: React.FC<Props> = ({ humanOwner, refreshTri
     }
   };
 
+  // One read on mount, so the collapsed header can show the block height.
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [humanOwner, refreshTrigger]);
+
+  // Polling only while the section is open. This is collapsed by default, so
+  // it was refreshing a contract ledger nobody had on screen.
+  useEffect(() => {
+    if (!open) return;
     const id = setInterval(() => load(), 12000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [humanOwner, refreshTrigger]);
+  }, [open, humanOwner, refreshTrigger]);
 
   const tabs: Array<[Tab, string]> = [
     ["profile", "Profile"],

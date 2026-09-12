@@ -710,6 +710,52 @@ export async function ensureHumanProfileOnChain(
 /**
  * Fetches complete real-time telemetry directly from the FloatCreditFacility contract on Arc Testnet.
  */
+/**
+ * Ledger rows, read once.
+ *
+ * drawdowns[id] and repayments[id] are assigned exactly once in the contract
+ * and never mutated, so a row that has been read can be kept indefinitely.
+ * Without this, every telemetry poll replayed the whole history one sequential
+ * RPC call per record - which is what was rate-limiting the public Arc node.
+ * Steady state is now one call for the head id plus one per genuinely new row.
+ */
+const recordCache: Record<"drawdowns" | "repayments", Map<string, any>> = {
+  drawdowns: new Map(),
+  repayments: new Map(),
+};
+
+async function warmRecordCache(
+  publicClient: ReturnType<typeof getPublicClient>,
+  fn: "drawdowns" | "repayments",
+  nextId: bigint
+) {
+  const cache = recordCache[fn];
+  const missing: bigint[] = [];
+  for (let id = BigInt(1); id < nextId; id++) {
+    if (!cache.has(id.toString())) missing.push(id);
+  }
+  if (missing.length === 0) return cache;
+
+  const rows = await Promise.all(
+    missing.map((id) =>
+      publicClient
+        .readContract({
+          address: FLOAT_CREDIT_FACILITY_ADDRESS,
+          abi: FLOAT_CREDIT_FACILITY_ABI,
+          functionName: fn,
+          args: [id],
+        })
+        .then((row: any) => ({ id, row }))
+        .catch(() => null)
+    )
+  );
+
+  for (const entry of rows) {
+    if (entry) cache.set(entry.id.toString(), entry.row);
+  }
+  return cache;
+}
+
 export async function fetchCompleteContractTelemetry(
   customHumanOwner?: string,
   knownAgents: string[] = []
@@ -763,39 +809,46 @@ export async function fetchCompleteContractTelemetry(
     )
   );
 
-  const authorizedAgents = [];
-  for (const agentAddr of defaultAgentsToCheck) {
-    try {
-      const isAuth = await publicClient.readContract({
-        address: FLOAT_CREDIT_FACILITY_ADDRESS,
-        abi: FLOAT_CREDIT_FACILITY_ABI,
-        functionName: "isAgentAuthorized",
-        args: [profileId, agentAddr as `0x${string}`],
-      });
+  // Two reads per agent, in parallel. Authorisation is revocable so it cannot be
+  // cached like the ledger rows, but there is no reason to await each agent in
+  // turn: sequentially this was 2N round trips for data with no interdependency.
+  const authorizedAgents = (
+    await Promise.all(
+      defaultAgentsToCheck.map(async (agentAddr) => {
+        try {
+          const [isAuth, authRecord] = await Promise.all([
+            publicClient.readContract({
+              address: FLOAT_CREDIT_FACILITY_ADDRESS,
+              abi: FLOAT_CREDIT_FACILITY_ABI,
+              functionName: "isAgentAuthorized",
+              args: [profileId, agentAddr as `0x${string}`],
+            }),
+            publicClient
+              .readContract({
+                address: FLOAT_CREDIT_FACILITY_ADDRESS,
+                abi: FLOAT_CREDIT_FACILITY_ABI,
+                functionName: "agentAuthorizations",
+                args: [agentAddr as `0x${string}`],
+              })
+              .catch(() => null) as Promise<any>,
+          ]);
 
-      const authRecord = (await publicClient
-        .readContract({
-          address: FLOAT_CREDIT_FACILITY_ADDRESS,
-          abi: FLOAT_CREDIT_FACILITY_ABI,
-          functionName: "agentAuthorizations",
-          args: [agentAddr as `0x${string}`],
-        })
-        .catch(() => null)) as any;
+          const authTime = authRecord ? Number(authRecord[2] || 0) : 0;
 
-      const authTime = authRecord ? Number(authRecord[2] || 0) : 0;
-
-      authorizedAgents.push({
-        agentAddress: agentAddr,
-        isAuthorized: Boolean(isAuth),
-        profileId: authRecord ? authRecord[0] : profileId,
-        authorizedAtTimestamp: authTime,
-        authorizedAtIso:
-          authTime > 0 ? new Date(authTime * 1000).toISOString() : "Active on Arc Testnet",
-      });
-    } catch {
-      // ignore
-    }
-  }
+          return {
+            agentAddress: agentAddr,
+            isAuthorized: Boolean(isAuth),
+            profileId: authRecord ? authRecord[0] : profileId,
+            authorizedAtTimestamp: authTime,
+            authorizedAtIso:
+              authTime > 0 ? new Date(authTime * 1000).toISOString() : "Active on Arc Testnet",
+          };
+        } catch {
+          return null;
+        }
+      })
+    )
+  ).filter(Boolean) as any[];
 
   // Query nextLoanId and all drawdowns
   const nextLoanId = (await publicClient
@@ -806,15 +859,13 @@ export async function fetchCompleteContractTelemetry(
     })
     .catch(() => BigInt(1))) as bigint;
 
+  const drawdownRows = await warmRecordCache(publicClient, "drawdowns", nextLoanId);
+
   const drawdowns = [];
   for (let id = BigInt(1); id < nextLoanId; id++) {
     try {
-      const d = (await publicClient.readContract({
-        address: FLOAT_CREDIT_FACILITY_ADDRESS,
-        abi: FLOAT_CREDIT_FACILITY_ABI,
-        functionName: "drawdowns",
-        args: [id],
-      })) as any;
+      const d = drawdownRows.get(id.toString()) as any;
+      if (!d) continue;
 
       // Filter drawdowns for this specific human profile if querying by owner
       if (customHumanOwner && d[1]?.toLowerCase() !== profileId.toLowerCase()) {
@@ -852,15 +903,13 @@ export async function fetchCompleteContractTelemetry(
     })
     .catch(() => BigInt(1))) as bigint;
 
+  const repaymentRows = await warmRecordCache(publicClient, "repayments", nextRepaymentId);
+
   const repayments = [];
   for (let id = BigInt(1); id < nextRepaymentId; id++) {
     try {
-      const r = (await publicClient.readContract({
-        address: FLOAT_CREDIT_FACILITY_ADDRESS,
-        abi: FLOAT_CREDIT_FACILITY_ABI,
-        functionName: "repayments",
-        args: [id],
-      })) as any;
+      const r = repaymentRows.get(id.toString()) as any;
+      if (!r) continue;
 
       // Filter repayments for this specific human profile if querying by owner
       if (customHumanOwner && r[1]?.toLowerCase() !== profileId.toLowerCase()) {

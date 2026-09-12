@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnedAgent } from "@/lib/session";
+import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 import { RepayRequest, RepayResponse } from "@/types";
 import {
   getAgentByAddress,
@@ -154,6 +155,10 @@ export async function POST(req: NextRequest) {
         status: remainingDebt === 0 ? "Healthy" : "Active",
       });
     }
+
+    // Borrow and pay both do this; without it a settlement stayed invisible
+    // on the tape until the cache window lapsed.
+    invalidateTelemetryCache(payingAgent.humanOwner);
 
     const updatedFacility = getHumanFacilityStats(payingAgent.humanOwner);
     const updatedBeneficiary = getAgentByAddress(beneficiaryAddress);
