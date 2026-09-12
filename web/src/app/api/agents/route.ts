@@ -3,6 +3,7 @@ import { Agent } from "@/types";
 import { getAllAgents, addAgentToStore, getAgentsByOwner, removeAgentFromStore } from "@/lib/agentStore";
 import { validateArcAgentWallet } from "@/lib/arc";
 import { resolveAgentBookStatus } from "@/lib/agentKit";
+import { FloatSignerTS } from "@/lib/floatSigner";
 
 function sanitizeAgentForClient(agent: Agent): Agent {
   // Strip out internal agentBookHumanId to protect human privacy in UI
@@ -16,7 +17,35 @@ export async function GET(req: NextRequest) {
     const owner = searchParams.get("owner");
 
     const rawAgents = owner ? getAgentsByOwner(owner) : getAllAgents();
-    const agents = rawAgents.map(sanitizeAgentForClient);
+
+    // Query live Circle Gateway balance for each registered agent
+    let floatSigner: FloatSignerTS | null = null;
+    try {
+      floatSigner = new FloatSignerTS();
+    } catch (e) {
+      console.warn("Could not initialize FloatSignerTS for balance queries:", e);
+    }
+
+    const enrichedAgents = await Promise.all(
+      rawAgents.map(async (agent) => {
+        let liveGw = (agent.currentBalance || 0).toFixed(2);
+        if (floatSigner) {
+          try {
+            const bal = await floatSigner.getAgentGatewayBalance(agent.address);
+            liveGw = bal.formattedAvailable;
+          } catch (err) {
+            // fallback to stored balance
+          }
+        }
+        return {
+          ...agent,
+          currentBalance: parseFloat(liveGw) || 0,
+          gatewayBalanceUSDC: liveGw,
+        };
+      })
+    );
+
+    const agents = enrichedAgents.map(sanitizeAgentForClient);
 
     return NextResponse.json({
       agents,
@@ -66,7 +95,7 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       humanOwner: humanOwner || "anonymous_human",
       network: "Arc Testnet (5042002)",
-      creditLimit: 500,
+      creditLimit: 10,
       outstandingDebt: 0,
       totalBorrowed: 0,
       totalRepaid: 0,

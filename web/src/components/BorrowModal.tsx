@@ -9,6 +9,7 @@ interface BorrowModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirmBorrow: (agentAddress: string, amount: number) => Promise<void>;
+  maxFacilityCredit?: number;
 }
 
 export const BorrowModal: React.FC<BorrowModalProps> = ({
@@ -16,6 +17,7 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
   isOpen,
   onClose,
   onConfirmBorrow,
+  maxFacilityCredit,
 }) => {
   const [amount, setAmount] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +32,10 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
 
   if (!isOpen || !agent) return null;
 
-  const availableCredit = Math.max(0, agent.creditLimit - agent.outstandingDebt);
+  const agentAvailable = Math.max(0, agent.creditLimit - agent.outstandingDebt);
+  const availableCredit = maxFacilityCredit !== undefined 
+    ? Math.min(agentAvailable, maxFacilityCredit) 
+    : agentAvailable;
   const parsedAmount = parseFloat(amount) || 0;
   const isOverLimit = parsedAmount > availableCredit;
   const newDebt = agent.outstandingDebt + parsedAmount;

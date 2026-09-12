@@ -6,7 +6,8 @@ import {
   getHumanFacilityStats,
 } from "@/lib/agentStore";
 import { createLoan } from "@/lib/loanStore";
-import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME } from "@/lib/arc";
+import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
+import { executeOnChainDrawdown } from "@/lib/facilityContract";
 
 export async function POST(req: NextRequest) {
   try {
@@ -80,11 +81,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Arc Testnet Settlement
-    // Generates genuine Arc Testnet transaction hash for liquidity disbursement
-    const arcTxHash = `0xarc${Array.from({ length: 60 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join("")}`;
+    // 4. Real On-Chain Arc Testnet Settlement
+    const onChainResult = await executeOnChainDrawdown({
+      agentAddress: agent.address,
+      humanOwner: agent.humanOwner,
+      amountUsdc: borrowAmount,
+      paymentReference: memo || "Manual Credit Draw on Arc Testnet",
+    });
+    const arcTxHash = onChainResult.txHash;
 
     // 5. Create atomic Loan record
     const loan = createLoan({
@@ -127,6 +131,7 @@ export async function POST(req: NextRequest) {
       agentAvailableCredit: Math.max(0, agent.creditLimit - newDebt),
       facilityAvailableCredit: updatedFacility.totalAvailableCredit,
       network: `${ARC_TESTNET_NAME} (${ARC_TESTNET_CHAIN_ID})`,
+      facilityContractAddress: FLOAT_CREDIT_FACILITY_ADDRESS,
       message: `Successfully disbursed $${borrowAmount.toFixed(
         2
       )} USDC on Arc Testnet.`,

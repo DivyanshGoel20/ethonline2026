@@ -7,6 +7,9 @@
     "dev": "tsx src/agent.ts"
   },
   "dependencies": {
+    "@circle-fin/x402-batching": "^3.4.0",
+    "@x402/core": "^2.25.0",
+    "@x402/evm": "^2.25.0",
     "dotenv": "^16.4.5",
     "viem": "^2.21.0"
   },

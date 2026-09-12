@@ -1,0 +1,210 @@
+[
+  {
+    "loanId": "loan_1789189211824_pm2ts",
+    "agentAddress": "0x36e271970fa654ef640ee150e3bd734e946c077d",
+    "agentName": "Unfunded Agent",
+    "humanOwner": "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
+    "amount": 0.01,
+    "outstandingAmount": 0.01,
+    "totalRepaid": 0,
+    "status": "ACTIVE",
+    "borrowedAt": 1789189211824,
+    "borrowTxHash": "0x56d1abeb4aaca3736c159fd25978f0f019515ea193f90b816fed9e7d25fb53a7",
+    "repayTxHashes": [],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+  },
+  {
+    "loanId": "loan_1789189119241_2d7kb",
+    "agentAddress": "0x36e271970fa654ef640ee150e3bd734e946c077d",
+    "agentName": "Unfunded Agent",
+    "humanOwner": "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
+    "amount": 0.01,
+    "outstandingAmount": 0.01,
+    "totalRepaid": 0,
+    "status": "ACTIVE",
+    "borrowedAt": 1789189119241,
+    "borrowTxHash": "0xarc_draw_2fe961caa6c76b0c18da42c54872b4e22c249fdacb4b0b48c3",
+    "repayTxHashes": [],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+  },
+  {
+    "loanId": "loan_1789189033569_j03lw",
+    "agentAddress": "0x5233e4253bc38e8cf517c0768dbc8acc886f32b3",
+    "agentName": "Funded Agent (Rabby Wallet)",
+    "humanOwner": "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
+    "amount": 499,
+    "outstandingAmount": 499,
+    "totalRepaid": 0,
+    "status": "ACTIVE",
+    "borrowedAt": 1789189033569,
+    "borrowTxHash": "0xarc40c8f65e70b2d8b01873e5aa38c4f63eec71d7b06755a8d3d4b10c608d20",
+    "repayTxHashes": [],
+    "memo": "Autonomous Credit Draw on Arc Testnet"
+  },
+  {
+    "loanId": "loan_1789112720935_dqhxk",
+    "agentAddress": "0xb534cb4a6e08faad83541883d366c0971ddf66be",
+    "agentName": "Funded Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 0.01,
+    "outstandingAmount": 0.01,
+    "totalRepaid": 0,
+    "status": "ACTIVE",
+    "borrowedAt": 1789112720935,
+    "borrowTxHash": "0xarc_draw_062f8e3c99cf9dcd18ca0cbcf1cacdb741135ebf5746b1ec85",
+    "repayTxHashes": [],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+  },
+  {
+    "loanId": "loan_1789112646329_yi2ot",
+    "agentAddress": "0x36e271970fa654ef640ee150e3bd734e946c077d",
+    "agentName": "Unfunded Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 0.01,
+    "outstandingAmount": 0.01,
+    "totalRepaid": 0,
+    "status": "ACTIVE",
+    "borrowedAt": 1789112646329,
+    "borrowTxHash": "0xarc_draw_3f04b031aaf50e4f09c60a54cd41c51da6b50fb5f186de7a95",
+    "repayTxHashes": [],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+  },
+  {
+    "loanId": "loan_1789105935900_5zt6e",
+    "agentAddress": "0x890663d91113b8fe99913bda4ee2647484a2591a",
+    "agentName": "Trial",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 0.01,
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
+    "borrowedAt": 1789105935900,
+    "borrowTxHash": "0xarc_draw_e4370ed77fd9b71ae59b4ec9255b16354f551b04c9f6d386f6",
+    "repayTxHashes": [
+      "0xarc0e902c7210b461f715ef27fef2afc97e2c296557f909d4c2b48fb1fb6aca"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789106887555
+  },
+  {
+    "loanId": "loan_1789105888189_dkwiy",
+    "agentAddress": "0x890663d91113b8fe99913bda4ee2647484a2591a",
+    "agentName": "Autonomous Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 0.01,
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
+    "borrowedAt": 1789105888189,
+    "borrowTxHash": "0xarc_draw_f4c5f13b5289edd6466120e40c0115cfde0a4ad7549f181a0e",
+    "repayTxHashes": [
+      "0xarc19b4661d42ebf6504d6c7576ea5430cd25ce4df89bf117c7c7ad953f7601"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789105940509
+  },
+  {
+    "loanId": "loan_1789045832804_mm9kz",
+    "agentAddress": "0x890663d91113b8fe99913bda4ee2647484a2591a",
+    "agentName": "Trial",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 0.01,
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
+    "borrowedAt": 1789045832805,
+    "borrowTxHash": "0xarc_draw_d42c575ff2561d21163a393c02090b739cfa34b12a5af9bc9f",
+    "repayTxHashes": [
+      "0xarca29b0ab0b182c2e936c1952438044d9c1916eae3d72ebfc68e2a26a27824"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789045835362
+  },
+  {
+    "loanId": "loan_1789045278733_npbi5",
+    "agentAddress": "0x890663d91113b8fe99913bda4ee2647484a2591a",
+    "agentName": "Trial",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 0.01,
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
+    "borrowedAt": 1789045278733,
+    "borrowTxHash": "0xarc_draw_6a73ae4034898d43845c885f9d33b269c54bbb617a8fc5b9a2",
+    "repayTxHashes": [
+      "0xarc9c3197eb17822fba7cafc80a74825d8125019e219c5e5af9062763b16ff8"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789045280935
+  },
+  {
+    "loanId": "loan_1788990433505_2eb4y",
+    "agentAddress": "0x6eb17a51b1b0323db039c3e808033f262492c87a",
+    "agentName": "ejeji",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 25,
+    "outstandingAmount": 0,
+    "totalRepaid": 25,
+    "status": "SETTLED",
+    "borrowedAt": 1788990433505,
+    "borrowTxHash": "0xarc7e8a9c972c08ff7fbff1ae551ca16acd56d6691f755ff5de9f7417398dc3",
+    "repayTxHashes": [
+      "0xarc53f93dc45d6248f14fee1ee3f2d27b966c8a32b835a58035d71045b35d37"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1788990433742
+  },
+  {
+    "loanId": "loan_1788986668281_x1xjo",
+    "agentAddress": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
+    "agentName": "Research Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 20,
+    "outstandingAmount": 0,
+    "totalRepaid": 20,
+    "status": "SETTLED",
+    "borrowedAt": 1788986668281,
+    "borrowTxHash": "0xarca97cc7a366d4af9c44fc92cdff746d2ac32c85092d22b5396c5eae44b237",
+    "repayTxHashes": [
+      "0xarcc7b8c7492a8976527af704cd81bb2b0e25ea11a812e3fd658ebce57a0089"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1788986671606
+  },
+  {
+    "loanId": "loan_1788986453405_vdn7w",
+    "agentAddress": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
+    "agentName": "Research Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 20,
+    "outstandingAmount": 0,
+    "totalRepaid": 20,
+    "status": "SETTLED",
+    "borrowedAt": 1788986453405,
+    "borrowTxHash": "0xarc28993f0ca89d778e494677be8646007bd594cf939dea08d6e8c535dfbc5c",
+    "repayTxHashes": [
+      "0xarc3c6ccbfa45b999fd5a86eee81c68b9492a844dc97f8dbe738335441d1810",
+      "0xarc5c77211926913c3ecce49e144264bbf25e61fe6a9b74238d009af77c51f9"
+    ],
+    "memo": "Terminal test",
+    "settledAt": 1788986501724
+  },
+  {
+    "loanId": "loan_1788985890232_bbvr2",
+    "agentAddress": "0x74e00fc788af01bd35311f00940f5df3dacd8734",
+    "agentName": "Research Agent",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 20,
+    "outstandingAmount": 0,
+    "totalRepaid": 20,
+    "status": "SETTLED",
+    "borrowedAt": 1788985890232,
+    "borrowTxHash": "0xarc2f6ace0465665830ead43036470b02042c0655f1ebdd79b283ce31cbcb98",
+    "repayTxHashes": [
+      "0xarc2c3c954a50a095c278e1067151844dccf1eca0f490b8da4ef838673be0cc",
+      "0xarc113e6494c9beca8bd822c8c54d2cc5f804407004d380254dad17736abcdc"
+    ],
+    "memo": "Short-term research API call credit",
+    "settledAt": 1788985912824
+  }
+]

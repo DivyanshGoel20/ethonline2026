@@ -16,6 +16,7 @@ export interface Agent {
   totalBorrowed: number;     // in USDC
   totalRepaid: number;       // in USDC
   currentBalance: number;    // in USDC
+  gatewayBalanceUSDC?: string; // Live Circle Gateway available USDC
   status: "Healthy" | "Active" | "Delinquent" | "Suspended";
   registeredAt: number;
 }
@@ -31,7 +32,7 @@ export interface CreditStats {
 
 export interface ActivityItem {
   id: string;
-  type: "borrow" | "repay" | "register" | "remove";
+  type: "borrow" | "repay" | "register" | "remove" | "x402_overdraft" | "x402_normal";
   agentName: string;
   agentAddress: string;
   amount?: number;

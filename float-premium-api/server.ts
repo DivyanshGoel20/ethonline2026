@@ -16,7 +16,7 @@ const app = express();
 
 const SELLER_WALLET =
   process.env.SELLER_WALLET_ADDRESS ||
-  "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3";
+  "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf";
 const FACILITATOR_URL =
   process.env.FACILITATOR_URL || "https://gateway-api-testnet.circle.com";
 const PORT = process.env.PORT || 3000;

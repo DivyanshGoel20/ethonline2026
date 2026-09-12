@@ -1,0 +1,53 @@
+specVersion: v0.1.0
+package:
+  name: float_substreams
+  version: v0.1.0
+  description: High-throughput live event streaming and derived credit metrics for Float on Arc
+
+protobuf:
+  files:
+    - float.proto
+  importPaths:
+    - ./proto
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: target/wasm32-unknown-unknown/release/float_substreams.wasm
+
+modules:
+  - name: map_credit_events
+    kind: map
+    initialBlock: 0
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:float.v1.CreditEvents
+
+  - name: store_agent_activity
+    kind: store
+    initialBlock: 0
+    updatePolicy: set
+    valueType: proto:float.v1.AgentActivity
+    inputs:
+      - map: map_credit_events
+
+  - name: store_human_exposure
+    kind: store
+    initialBlock: 0
+    updatePolicy: set
+    valueType: proto:float.v1.HumanExposure
+    inputs:
+      - map: map_credit_events
+
+  - name: map_live_metrics
+    kind: map
+    initialBlock: 0
+    inputs:
+      - map: map_credit_events
+      - store: store_human_exposure
+      - store: store_agent_activity
+    output:
+      type: proto:float.v1.DerivedMetrics
+
+network: arc-testnet

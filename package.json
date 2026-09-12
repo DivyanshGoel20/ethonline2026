@@ -12,7 +12,8 @@
     "dev": "npm --workspace=web run dev",
     "dev:agent": "npm --workspace=agent-demo run dev",
     "dev:mock": "npm --workspace=agent-demo run mock",
-    "lint": "npm --workspace=web run lint"
+    "lint": "npm --workspace=web run lint",
+    "deposit": "tsx --env-file=.env scripts/deposit-gateway.ts"
   },
   "keywords": [
     "ai-agents",
@@ -28,6 +29,12 @@
   "author": "Float Team",
   "license": "MIT",
   "dependencies": {
-    "@worldcoin/agentkit": "^0.2.1"
+    "@circle-fin/x402-batching": "^3.4.0",
+    "@worldcoin/agentkit": "^0.2.1",
+    "@x402/core": "^2.25.0",
+    "@x402/evm": "^2.25.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.13"
   }
 }

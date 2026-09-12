@@ -3,6 +3,11 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 export const ARC_TESTNET_CHAIN_ID = 5042002;
 export const ARC_TESTNET_NAME = "Arc Testnet";
+export const FLOAT_CREDIT_FACILITY_ADDRESS = (process.env.FLOAT_CREDIT_FACILITY_ADDRESS ||
+  process.env.NEXT_PUBLIC_FLOAT_CREDIT_FACILITY_ADDRESS ||
+  "0xAa2d23bAC7b6f9b4ca2737252F924b3F485E0686") as `0x${string}`;
+export const ARC_USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS ||
+  "0x3600000000000000000000000000000000000000") as `0x${string}`;
 
 /**
  * Validates whether an address is a valid, usable EVM address for Arc Testnet.

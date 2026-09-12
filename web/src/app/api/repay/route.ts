@@ -7,7 +7,8 @@ import {
   getAgentsByOwner,
 } from "@/lib/agentStore";
 import { processRepayment, getLoansByAgent } from "@/lib/loanStore";
-import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME } from "@/lib/arc";
+import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
+import { executeOnChainRepayment } from "@/lib/facilityContract";
 
 export async function POST(req: NextRequest) {
   try {
@@ -95,12 +96,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Arc Testnet Settlement
-    const arcTxHash =
-      txHash ||
-      `0xarc${Array.from({ length: 60 }, () =>
-        Math.floor(Math.random() * 16).toString(16)
-      ).join("")}`;
+    // 4. Real On-Chain Arc Testnet Settlement
+    let arcTxHash = txHash;
+    if (!arcTxHash) {
+      const onChainRepay = await executeOnChainRepayment({
+        humanOwner: payingAgent.humanOwner,
+        payerAddress: payingAgent.address,
+        agentAddress: beneficiaryAddress,
+        amountUsdc: repayAmount,
+      });
+      arcTxHash = onChainRepay.txHash;
+    }
 
     // 5. Process Repayment against Loan Ledger
     const result = processRepayment({
@@ -172,6 +178,7 @@ export async function POST(req: NextRequest) {
       payingAgentName: payingAgent.name,
       beneficiaryAgentName: updatedBeneficiary?.name || payingAgent.name,
       network: `${ARC_TESTNET_NAME} (${ARC_TESTNET_CHAIN_ID})`,
+      facilityContractAddress: FLOAT_CREDIT_FACILITY_ADDRESS,
       message,
     });
   } catch (error: any) {

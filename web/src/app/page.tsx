@@ -10,10 +10,11 @@ import { AddAgentModal } from "@/components/AddAgentModal";
 import { RemoveAgentModal } from "@/components/RemoveAgentModal";
 import { AgentKitRegisterModal } from "@/components/AgentKitRegisterModal";
 import { AgentVerificationModal } from "@/components/AgentVerificationModal";
+import { X402PayModal } from "@/components/X402PayModal";
 import { ApiModal } from "@/components/ApiModal";
 import { WorldAuthGate } from "@/components/WorldAuthGate";
-import { ActivityFeed } from "@/components/ActivityFeed";
-import { Agent, CreditStats as CreditStatsType, ActivityItem } from "@/types";
+import { SmartContractTelemetry } from "@/components/SmartContractTelemetry";
+import { Agent, CreditStats as CreditStatsType } from "@/types";
 import { Search, Plus, Bot } from "lucide-react";
 
 export default function Dashboard() {
@@ -32,11 +33,9 @@ export default function Dashboard() {
   const [selectedRemoveAgent, setSelectedRemoveAgent] = useState<Agent | null>(null);
   const [selectedAgentKitAgent, setSelectedAgentKitAgent] = useState<Agent | null>(null);
   const [selectedDetailsAgent, setSelectedDetailsAgent] = useState<Agent | null>(null);
+  const [selectedPayAgent, setSelectedPayAgent] = useState<Agent | null>(null);
   const [isAddAgentOpen, setIsAddAgentOpen] = useState(false);
   const [isApiDocsOpen, setIsApiDocsOpen] = useState(false);
-
-  // Recent Activity Feed
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
 
   // Toast feedback
   const [toast, setToast] = useState<{ message: string; type: "success" | "neutral" } | null>(null);
@@ -47,9 +46,12 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    // Restore session if previously verified in browser
-    const storedSession = localStorage.getItem("float_world_session");
+    // Restore session if previously verified in browser or via session query param
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionParam = urlParams.get("session") || urlParams.get("human");
+    const storedSession = sessionParam || localStorage.getItem("float_world_session");
     if (storedSession) {
+      localStorage.setItem("float_world_session", storedSession);
       setIsWorldVerified(true);
       setNullifierHash(storedSession);
     }
@@ -64,12 +66,14 @@ export default function Dashboard() {
         }
       })
       .catch((err) => console.error("[Dashboard] Error fetching agents:", err));
+
+
   }, []);
 
-  // Shared aggregate credit calculation (Human-level facility of $500)
+  // Shared aggregate credit calculation (Human-level facility of $10.00)
   const totalAvailableCredit = Math.max(
     0,
-    500 - agents.reduce((acc, a) => acc + a.outstandingDebt, 0)
+    10 - agents.reduce((acc, a) => acc + a.outstandingDebt, 0)
   );
   const totalCreditUsed = agents.reduce((acc, a) => acc + a.outstandingDebt, 0);
   const totalOutstandingDebt = totalCreditUsed;
@@ -127,18 +131,7 @@ export default function Dashboard() {
       )
     );
 
-    setActivities((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        type: "borrow",
-        agentName: targetAgent?.name || "Agent",
-        agentAddress,
-        amount,
-        timestamp: Date.now(),
-        txHash: data.txHash || "0xarc_draw",
-      },
-      ...prev,
-    ]);
+
 
     showToast(`Drawn $${amount.toFixed(2)} USDC for ${targetAgent?.name || "Agent"}`);
   };
@@ -170,18 +163,7 @@ export default function Dashboard() {
       })
       .catch((e) => console.error("Error refreshing agents:", e));
 
-    setActivities((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        type: "repay",
-        agentName: targetAgent?.name || "Agent",
-        agentAddress,
-        amount: data.amount || amount,
-        timestamp: Date.now(),
-        txHash: data.txHash || "0xarc_repay",
-      },
-      ...prev,
-    ]);
+
 
     showToast(`Settled $${amount.toFixed(2)} USDC repayment for ${targetAgent?.name || "Agent"}`);
   };
@@ -198,17 +180,7 @@ export default function Dashboard() {
       return [newAgent, ...prev];
     });
 
-    setActivities((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        type: "register",
-        agentName: newAgent.name,
-        agentAddress: newAgent.address,
-        timestamp: Date.now(),
-        txHash: "0xarc_register",
-      },
-      ...prev,
-    ]);
+
 
     showToast(`Added ${newAgent.name} to Arc credit facility`);
   };
@@ -232,17 +204,7 @@ export default function Dashboard() {
       prev.filter((a) => a.address.toLowerCase() !== agentAddress.toLowerCase())
     );
 
-    setActivities((prev) => [
-      {
-        id: `act-${Date.now()}`,
-        type: "remove",
-        agentName: targetAgent?.name || "Agent",
-        agentAddress,
-        timestamp: Date.now(),
-        txHash: "0xarc_disconnect",
-      },
-      ...prev,
-    ]);
+
 
     showToast(`Disconnected ${targetAgent?.name || "Agent"} from facility`);
   };
@@ -343,57 +305,55 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* Main Workspace Layout (Agents Grid + Activity Rail) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left: Agents Grid */}
-          <div className="lg:col-span-8 space-y-4">
-            {agents.length === 0 ? (
-              /* High-End Clean Empty State */
-              <div className="fintech-card p-12 text-center rounded-2xl space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-400">
-                  <Bot className="w-6 h-6 text-zinc-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white">No agents added</h3>
-                  <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1.5 leading-relaxed">
-                    Add an Arc Testnet agent wallet to begin extending credit and linking to canonical World AgentBook.
-                  </p>
-                </div>
-                <div className="pt-2">
-                  <button
-                    onClick={() => setIsAddAgentOpen(true)}
-                    className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-semibold transition shadow-sm"
-                  >
-                    + Add Existing Agent
-                  </button>
-                </div>
+        {/* Main Workspace Layout (Full-Width Agents Grid) */}
+        <div className="w-full space-y-4">
+          {agents.length === 0 ? (
+            /* High-End Clean Empty State */
+            <div className="fintech-card p-12 text-center rounded-2xl space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-white/[0.08] flex items-center justify-center mx-auto text-zinc-400">
+                <Bot className="w-6 h-6 text-zinc-400" />
               </div>
-            ) : filteredAgents.length === 0 ? (
-              <div className="fintech-card p-12 text-center text-xs text-zinc-500 rounded-2xl">
-                No agents match your search filter.
+              <div>
+                <h3 className="text-sm font-semibold text-white">No agents added</h3>
+                <p className="text-xs text-zinc-400 max-w-sm mx-auto mt-1.5 leading-relaxed">
+                  Add an Arc Testnet agent wallet to begin extending credit and linking to canonical World AgentBook.
+                </p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredAgents.map((agent) => (
-                  <AgentCard
-                    key={agent.address}
-                    agent={agent}
-                    onOpenBorrow={(a) => setSelectedBorrowAgent(a)}
-                    onOpenRepay={(a) => setSelectedRepayAgent(a)}
-                    onRemoveAgent={(a) => setSelectedRemoveAgent(a)}
-                    onOpenAgentKitRegister={(a) => setSelectedAgentKitAgent(a)}
-                    onOpenDetails={(a) => setSelectedDetailsAgent(a)}
-                  />
-                ))}
+              <div className="pt-2">
+                <button
+                  onClick={() => setIsAddAgentOpen(true)}
+                  className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 text-xs font-semibold transition shadow-sm"
+                >
+                  + Add Existing Agent
+                </button>
               </div>
-            )}
-          </div>
-
-          {/* Right: Activity Rail */}
-          <div className="lg:col-span-4 space-y-4">
-            <ActivityFeed items={activities} />
-          </div>
+            </div>
+          ) : filteredAgents.length === 0 ? (
+            <div className="fintech-card p-12 text-center text-xs text-zinc-500 rounded-2xl">
+              No agents match your search filter.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredAgents.map((agent) => (
+                <AgentCard
+                  key={agent.address}
+                  agent={agent}
+                  onOpenBorrow={(a) => setSelectedBorrowAgent(a)}
+                  onOpenRepay={(a) => setSelectedRepayAgent(a)}
+                  onOpenPay={(a) => setSelectedPayAgent(a)}
+                  onRemoveAgent={(a) => setSelectedRemoveAgent(a)}
+                  onOpenAgentKitRegister={(a) => setSelectedAgentKitAgent(a)}
+                  onOpenDetails={(a) => setSelectedDetailsAgent(a)}
+                />
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Live On-Chain Smart Contract Telemetry & Verification Section */}
+        <section className="pt-2">
+          <SmartContractTelemetry />
+        </section>
       </main>
 
       {/* Modals */}
@@ -402,6 +362,7 @@ export default function Dashboard() {
         isOpen={!!selectedBorrowAgent}
         onClose={() => setSelectedBorrowAgent(null)}
         onConfirmBorrow={handleConfirmBorrow}
+        maxFacilityCredit={totalAvailableCredit}
       />
 
       <RepayModal
@@ -446,6 +407,34 @@ export default function Dashboard() {
         isOpen={!!selectedDetailsAgent}
         onClose={() => setSelectedDetailsAgent(null)}
         onOpenRegister={(a) => setSelectedAgentKitAgent(a)}
+      />
+
+      <X402PayModal
+        agent={selectedPayAgent}
+        isOpen={!!selectedPayAgent}
+        onClose={() => setSelectedPayAgent(null)}
+        onPaymentSuccess={(result) => {
+          const borrowed = parseFloat(result.borrowed || "0.01");
+          // Refresh agents state with updated debt
+          setAgents((prev) =>
+            prev.map((a) => {
+              if (
+                selectedPayAgent &&
+                a.address.toLowerCase() === selectedPayAgent.address.toLowerCase()
+              ) {
+                return {
+                  ...a,
+                  outstandingDebt: a.outstandingDebt + borrowed,
+                  totalBorrowed: a.totalBorrowed + borrowed,
+                };
+              }
+              return a;
+            })
+          );
+          showToast(
+            `x402 payment settled via Float Overdraft ($${borrowed.toFixed(2)} USDC)!`
+          );
+        }}
       />
 
       <ApiModal

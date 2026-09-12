@@ -8,7 +8,7 @@ interface CreditStatsProps {
 }
 
 export const CreditStats: React.FC<CreditStatsProps> = ({ stats }) => {
-  const facilityLimit = 500;
+  const facilityLimit = 10;
   const outstanding = stats.totalOutstandingDebt;
   const available = Math.max(0, facilityLimit - outstanding);
   const utilizationRatio = Math.min(
@@ -88,6 +88,13 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats }) => {
               <div className="text-[11px] text-zinc-500 font-medium">Connected Agents</div>
               <div className="text-sm font-semibold text-zinc-300 mt-0.5 tabular-nums">
                 {stats.activeAgentsCount} {stats.activeAgentsCount === 1 ? "agent" : "agents"}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[11px] text-zinc-500 font-medium">Arc Facility Contract</div>
+              <div className="text-[11px] font-mono text-zinc-400 mt-0.5 flex items-center gap-1">
+                <span>0xAa2d...0686</span>
               </div>
             </div>
 

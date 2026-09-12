@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package float.v1;
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_BORROW = 1;
+  EVENT_TYPE_REPAY = 2;
+  EVENT_TYPE_PAYMENT = 3;
+  EVENT_TYPE_DEFAULT = 4;
+  EVENT_TYPE_CREDIT_LIMIT_CHANGED = 5;
+  EVENT_TYPE_AGENT_ADDED = 6;
+}
+
+message CreditEvent {
+  EventType event_type = 1;
+  string tx_hash = 2;
+  uint64 log_index = 3;
+  uint64 timestamp = 4;
+  string profile_id = 5;
+  string human_owner = 6;
+  string agent_address = 7;
+  string amount = 8;
+  string outstanding_debt = 9;
+  string credit_limit = 10;
+  string payment_reference = 11;
+  string payer = 12;
+}
+
+message CreditEvents {
+  repeated CreditEvent events = 1;
+}
+
+message AgentActivity {
+  string agent_address = 1;
+  string profile_id = 2;
+  string total_borrowed = 3;
+  string total_repaid = 4;
+  string outstanding_debt = 5;
+  uint64 payment_count = 6;
+  uint64 drawdown_count = 7;
+  uint64 last_active = 8;
+}
+
+message HumanExposure {
+  string profile_id = 1;
+  string human_owner = 2;
+  string credit_limit = 3;
+  string outstanding_debt = 4;
+  string available_headroom = 5;
+  double credit_utilization = 6;
+  uint32 agent_count = 7;
+  repeated string authorized_agents = 8;
+}
+
+message DerivedMetrics {
+  string current_outstanding_debt = 1;
+  string total_borrowed = 2;
+  string total_repaid = 3;
+  uint64 payment_count = 4;
+  uint64 drawdown_count = 5;
+  double repayment_rate = 6;
+  double credit_utilization = 7;
+  uint32 active_agents = 8;
+  repeated HumanExposure human_exposures = 9;
+  repeated AgentActivity agent_activities = 10;
+  uint64 timestamp = 11;
+}

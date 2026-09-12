@@ -2,22 +2,33 @@ import fs from "fs";
 import path from "path";
 import { Agent } from "@/types";
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
-const AGENTS_FILE = path.join(DATA_DIR, "agents.json");
+function getAgentsFilePath(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "web", "data", "agents.json"),
+    path.resolve(process.cwd(), "data", "agents.json"),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return path.resolve(process.cwd(), "data", "agents.json");
+}
 
 function ensureDirectoryExists() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const filePath = getAgentsFilePath();
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
 export function getAllAgents(): Agent[] {
   try {
     ensureDirectoryExists();
-    if (!fs.existsSync(AGENTS_FILE)) {
+    const filePath = getAgentsFilePath();
+    if (!fs.existsSync(filePath)) {
       return [];
     }
-    const content = fs.readFileSync(AGENTS_FILE, "utf8");
+    const content = fs.readFileSync(filePath, "utf8");
     return JSON.parse(content);
   } catch (error) {
     console.error("[AgentStore] Error reading agents file:", error);
@@ -28,7 +39,8 @@ export function getAllAgents(): Agent[] {
 export function saveAllAgents(agents: Agent[]) {
   try {
     ensureDirectoryExists();
-    fs.writeFileSync(AGENTS_FILE, JSON.stringify(agents, null, 2), "utf8");
+    const filePath = getAgentsFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(agents, null, 2), "utf8");
   } catch (error) {
     console.error("[AgentStore] Error writing agents file:", error);
   }
@@ -105,7 +117,7 @@ export function getHumanFacilityStats(
   totalRepaid: number;
 } {
   const humanAgents = getAgentsByOwner(humanOwner, agentBookHumanId);
-  const totalCreditLimit = 500; // Single $500 facility limit per human
+  const totalCreditLimit = 10; // Single $10 facility limit per human
   const totalOutstandingDebt = humanAgents.reduce(
     (sum, a) => sum + (a.outstandingDebt || 0),
     0

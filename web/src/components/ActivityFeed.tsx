@@ -2,7 +2,7 @@
 
 import React from "react";
 import { ActivityItem } from "@/types";
-import { ArrowDownLeft, ArrowUpRight, Plus, ExternalLink, Bot } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Plus, ExternalLink, Bot, Zap } from "lucide-react";
 
 interface ActivityFeedProps {
   items: ActivityItem[];
@@ -38,6 +38,8 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
             const isBorrow = item.type === "borrow";
             const isRepay = item.type === "repay";
             const isRegister = item.type === "register";
+            const isOverdraft = item.type === "x402_overdraft";
+            const isNormal = item.type === "x402_normal";
 
             return (
               <div
@@ -48,13 +50,17 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
                     className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
-                      isBorrow
+                      isOverdraft
+                        ? "bg-amber-950/40 border-amber-500/30 text-amber-400"
+                        : isBorrow
                         ? "bg-zinc-900 border-white/[0.08] text-white"
                         : isRepay
                         ? "bg-emerald-950/30 border-emerald-500/20 text-emerald-400"
                         : "bg-zinc-900 border-white/[0.08] text-zinc-400"
                     }`}
                   >
+                    {isOverdraft && <Zap className="w-3.5 h-3.5" />}
+                    {isNormal && <ArrowUpRight className="w-3.5 h-3.5 text-zinc-400" />}
                     {isBorrow && <ArrowDownLeft className="w-3.5 h-3.5" />}
                     {isRepay && <ArrowUpRight className="w-3.5 h-3.5" />}
                     {isRegister && <Bot className="w-3.5 h-3.5" />}
@@ -62,7 +68,11 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
 
                   <div className="min-w-0">
                     <div className="font-medium text-zinc-200 truncate">
-                      {isBorrow
+                      {isOverdraft
+                        ? "x402 Overdraft Covered"
+                        : isNormal
+                        ? "x402 Direct Payment"
+                        : isBorrow
                         ? "Borrowed"
                         : isRepay
                         ? "Repaid"
@@ -70,8 +80,19 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
                         ? "Agent registered"
                         : "Disconnected"}
                     </div>
-                    <div className="text-[11px] text-zinc-500 truncate font-mono">
-                      {item.agentName}
+                    <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
+                      <span className="truncate">{item.agentName}</span>
+                      {item.agentAddress && (
+                        <a
+                          href={`https://testnet.arcscan.app/address/${item.agentAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-zinc-600 hover:text-zinc-300 transition shrink-0"
+                          title="View Agent on ArcScan"
+                        >
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -81,10 +102,14 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({ items }) => {
                   {item.amount !== undefined ? (
                     <div
                       className={`font-semibold tabular-nums text-xs ${
-                        isBorrow ? "text-white" : "text-emerald-400"
+                        isOverdraft
+                          ? "text-amber-400"
+                          : isBorrow
+                          ? "text-white"
+                          : "text-emerald-400"
                       }`}
                     >
-                      {isBorrow ? "+" : "-"}${item.amount.toFixed(2)} USDC
+                      {isBorrow || isOverdraft ? "+" : "-"}${item.amount.toFixed(2)} USDC
                     </div>
                   ) : (
                     <div className="text-zinc-400 text-[11px]">Ready</div>

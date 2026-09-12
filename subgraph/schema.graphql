@@ -1,72 +1,98 @@
 """
-Standardized Financial Activity & Credit Schema for AI Agents in Float
-Conforms to The Graph Composable Data and Standardized Schema criteria.
+Float Standardized Subgraph Schema
+Historical credit, accounting, and indexing layer for Float Credit Facilities on Arc.
 """
 
-enum PaymentDirection {
-  INCOMING
-  OUTGOING
+enum ProfileStatus {
+  INACTIVE
+  ACTIVE
+  SUSPENDED
+  DEFAULTED
 }
 
-enum PaymentType {
-  CREDIT_DRAW
-  REPAYMENT
-  X402_NANOPAYMENT
-  REVENUE
+enum FundingSource {
+  AGENT_GATEWAY
+  FLOAT_FACILITY
 }
 
-type Agent @entity {
-  id: ID! # Agent wallet address in lowercase hex
-  agentAddress: Bytes!
-  humanOwner: Bytes! # Verified World Selfie Check human controller
-  name: String!
-  isActive: Boolean!
-  registeredAt: BigInt!
-  financialProfile: FinancialProfile!
-  borrows: [BorrowRecord!]! @derivedFrom(field: "agent")
-  repayments: [RepayRecord!]! @derivedFrom(field: "agent")
-  paymentActivities: [PaymentActivity!]! @derivedFrom(field: "agent")
-}
-
-type FinancialProfile @entity {
-  id: ID! # Agent address
-  agent: Agent!
-  totalBorrowed: BigInt!
-  totalRepaid: BigInt!
-  outstandingDebt: BigInt!
-  creditLimit: BigInt!
-  creditUtilizationBps: BigInt! # In basis points (0 - 10000)
-  borrowCount: BigInt!
-  repaymentCount: BigInt!
+type Facility @entity {
+  id: ID!
+  totalProfiles: BigInt!
+  totalDrawdowns: BigInt!
+  totalRepayments: BigInt!
+  totalVolumeBorrowed: BigInt!
+  totalVolumeRepaid: BigInt!
+  totalOutstandingExposure: BigInt!
   lastActivityTimestamp: BigInt!
 }
 
-type BorrowRecord @entity(immutable: true) {
-  id: ID! # txHash + logIndex
+type HumanCreditProfile @entity {
+  id: ID! # bytes32 profileId
+  humanOwner: Bytes!
+  humanRoot: Bytes!
+  creditLimit: BigInt!
+  outstandingDebt: BigInt!
+  totalBorrowed: BigInt!
+  totalRepaid: BigInt!
+  creditUtilizationBps: BigInt!
+  status: ProfileStatus!
+  createdAt: BigInt!
+  agents: [Agent!]! @derivedFrom(field: "humanProfile")
+  drawdowns: [Drawdown!]! @derivedFrom(field: "humanProfile")
+  repayments: [Repayment!]! @derivedFrom(field: "humanProfile")
+  payments: [Payment!]! @derivedFrom(field: "humanProfile")
+  defaults: [DefaultRecord!]! @derivedFrom(field: "humanProfile")
+}
+
+type Agent @entity {
+  id: ID! # agent address hex
+  agentAddress: Bytes!
+  humanProfile: HumanCreditProfile!
+  isActive: Boolean!
+  authorizedAt: BigInt!
+  drawdowns: [Drawdown!]! @derivedFrom(field: "agent")
+  repayments: [Repayment!]! @derivedFrom(field: "beneficiaryAgent")
+  payments: [Payment!]! @derivedFrom(field: "agent")
+}
+
+type Drawdown @entity(immutable: true) {
+  id: ID! # loanId
+  humanProfile: HumanCreditProfile!
   agent: Agent!
   amount: BigInt!
   outstandingDebtAfter: BigInt!
+  paymentReference: String!
   timestamp: BigInt!
   transactionHash: Bytes!
 }
 
-type RepayRecord @entity(immutable: true) {
-  id: ID! # txHash + logIndex
-  agent: Agent!
+type Repayment @entity(immutable: true) {
+  id: ID! # repaymentId
+  humanProfile: HumanCreditProfile!
+  payer: Bytes!
+  beneficiaryAgent: Agent
   amount: BigInt!
   remainingDebt: BigInt!
   timestamp: BigInt!
   transactionHash: Bytes!
 }
 
-type PaymentActivity @entity(immutable: true) {
-  id: ID! # txHash + logIndex
+type Payment @entity(immutable: true) {
+  id: ID! # paymentId
   agent: Agent!
-  direction: PaymentDirection!
-  token: Bytes!
+  humanProfile: HumanCreditProfile!
+  sellerAddress: Bytes!
+  resourceUrl: String!
   amount: BigInt!
-  counterparty: Bytes!
-  paymentType: PaymentType!
+  fundingSource: FundingSource!
+  drawdown: Drawdown
+  timestamp: BigInt!
+}
+
+type DefaultRecord @entity(immutable: true) {
+  id: ID! # txHash + profileId
+  humanProfile: HumanCreditProfile!
+  outstandingDebt: BigInt!
   timestamp: BigInt!
   transactionHash: Bytes!
 }

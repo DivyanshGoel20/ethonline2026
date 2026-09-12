@@ -1,0 +1,34 @@
+[
+  {
+    "agentId": "agent_1789109152512_g3z3s",
+    "address": "0x36e271970fa654ef640ee150e3bd734e946c077d",
+    "name": "Unfunded Agent",
+    "humanOwner": "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
+    "network": "Arc Testnet (5042002)",
+    "creditLimit": 10,
+    "outstandingDebt": 0.01,
+    "totalBorrowed": 0.01,
+    "totalRepaid": 0,
+    "currentBalance": 0,
+    "status": "Active",
+    "registeredAt": 1789109152512,
+    "isWorldBacked": false,
+    "agentBookStatus": "UNVERIFIED"
+  },
+  {
+    "agentId": "agent_1789109137264_3ru15",
+    "address": "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
+    "name": "Funded Agent (Rabby Wallet)",
+    "humanOwner": "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
+    "network": "Arc Testnet (5042002)",
+    "creditLimit": 10,
+    "outstandingDebt": 0,
+    "totalBorrowed": 0,
+    "totalRepaid": 0,
+    "currentBalance": 10.13,
+    "status": "Active",
+    "registeredAt": 1789109137264,
+    "isWorldBacked": false,
+    "agentBookStatus": "UNVERIFIED"
+  }
+]

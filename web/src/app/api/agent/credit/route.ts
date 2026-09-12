@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentByAddress, getHumanFacilityStats } from "@/lib/agentStore";
-import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME } from "@/lib/arc";
+import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
 
 export async function GET(req: NextRequest) {
   try {
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
         agentCount: facility.agentCount,
       },
       network: `${ARC_TESTNET_NAME} (${ARC_TESTNET_CHAIN_ID})`,
+      facilityContractAddress: FLOAT_CREDIT_FACILITY_ADDRESS,
       timestamp: Date.now(),
     });
   } catch (error: any) {
