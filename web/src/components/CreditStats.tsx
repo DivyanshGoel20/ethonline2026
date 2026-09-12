@@ -2,7 +2,7 @@
 
 import React from "react";
 import { CreditStats as CreditStatsType } from "@/types";
-import { Wave, Label, usd } from "./ui";
+import { Wave, Boat, Label, usd } from "./ui";
 
 const FACILITY_CONTRACT = "0xAa2d23bAC7b6f9b4ca2737252F924b3F485E0686";
 const TICKS = [0, 25, 50, 75, 100];
@@ -33,6 +33,10 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
   // is enough water to contain it. Below that it rides with the available
   // figure instead of poking out through the surface.
   const deep = util >= 20;
+
+  // The boat is 57px tall in a 260-310px tank, so it has to stop climbing well
+  // before the water does or it sails out through the top of the frame.
+  const boat = Math.min(util, 74);
 
   return (
     <section>
@@ -69,6 +73,8 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
               </span>
             </div>
           </div>
+
+          <Boat className="boat-tank" style={{ bottom: `calc(${boat.toFixed(2)}% + 2px)` }} />
 
           <div
             className="tank-rider left-7 sm:left-10"

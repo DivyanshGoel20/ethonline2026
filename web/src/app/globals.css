@@ -321,15 +321,49 @@ body {
     height: 100%;
   }
   .wave-a {
-    top: -16px;
-    height: 19px;
-    opacity: 0.42;
-    animation: drift 12s linear infinite;
+    top: -26px;
+    height: 30px;
+    opacity: 0.55;
+    animation: drift 8s linear infinite;
   }
   .wave-b {
-    top: -10px;
-    height: 15px;
-    animation: drift-back 19s linear infinite;
+    top: -17px;
+    height: 24px;
+    animation: drift-back 13s linear infinite;
+  }
+
+  /* Rides the surface, because the surface is the whole point. */
+  /* Ink, not paper: the boat spends most of its height above the surface, over
+     a light ground that paper-coloured would vanish into. The sliver below the
+     line going dark-on-dark is what submerged looks like. */
+  .boat {
+    position: absolute;
+    right: 17%;
+    color: var(--ink);
+    transform-origin: 50% 95%;
+    animation: bob 5s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  /* In the tank the boat is placed against the tank floor, not inside the water
+     element, so its level can be clamped short of the rim. Left in the water it
+     would sail up through the top of the frame on a fully drawn facility. */
+  .boat-tank {
+    transition: bottom 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* On a fixed band there is no rim to hit, so it just straddles the surface. */
+  .boat-band {
+    top: -50px;
+  }
+  @keyframes bob {
+    0%,
+    100% {
+      transform: translateY(1px) rotate(-4deg);
+    }
+    50% {
+      transform: translateY(-3px) rotate(4deg);
+    }
   }
 
   @keyframes drift {

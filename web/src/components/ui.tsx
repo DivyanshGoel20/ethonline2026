@@ -26,26 +26,54 @@ export const Mono: React.FC<{ children: React.ReactNode; className?: string }> =
   className = "",
 }) => <span className={`mn ${className}`}>{children}</span>;
 
-/** The drawn meniscus. Two offset paths so the surface never looks like a bar. */
+/**
+ * The drawn meniscus.
+ *
+ * Two layers at different periods and speeds, so the surface reads as swell
+ * rather than as a bar with a wobbly edge. Each layer carries an even number
+ * of identical periods, because the drift animation slides it by exactly half
+ * its width and an odd count would visibly jump on the loop.
+ */
 export const Wave: React.FC = () => (
   <>
     <div className="wave wave-a">
-      <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+      <svg viewBox="0 0 1200 60" preserveAspectRatio="none">
         <path
-          d="M0,26 C100,10 200,40 300,26 C400,12 500,40 600,26 C700,10 800,40 900,26 C1000,12 1100,40 1200,26 L1200,40 L0,40 Z"
+          d="M0,32 C100,4 200,60 300,32 C400,4 500,60 600,32 C700,4 800,60 900,32 C1000,4 1100,60 1200,32 L1200,60 L0,60 Z"
           fill="currentColor"
         />
       </svg>
     </div>
     <div className="wave wave-b">
-      <svg viewBox="0 0 1200 40" preserveAspectRatio="none">
+      <svg viewBox="0 0 1200 60" preserveAspectRatio="none">
         <path
-          d="M0,20 C150,38 250,6 400,20 C550,34 650,6 800,20 C950,34 1050,6 1200,20 L1200,40 L0,40 Z"
+          d="M0,28 C150,0 450,56 600,28 C750,0 1050,56 1200,28 L1200,60 L0,60 Z"
           fill="currentColor"
         />
       </svg>
     </div>
   </>
+);
+
+/**
+ * A boat on the line.
+ *
+ * Sits inside the water element, so it rides the surface for free: when the
+ * facility is drawn down the water rises and the boat rises with it, on the
+ * same easing.
+ */
+export const Boat: React.FC<{ className?: string; style?: React.CSSProperties }> = ({
+  className = "",
+  style,
+}) => (
+  <div className={`boat ${className}`} style={style} aria-hidden="true">
+    <svg width="54" height="57" viewBox="0 0 34 36" fill="none">
+      <line x1="17" y1="3" x2="17" y2="25" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M18.6 6 L18.6 23 L29 23 Z" fill="currentColor" />
+      <path d="M15.4 9 L7.5 23 L15.4 23 Z" fill="currentColor" opacity="0.75" />
+      <path d="M1.5 25 Q17 35 32.5 25 Z" fill="currentColor" />
+    </svg>
+  </div>
 );
 
 export const Wordmark: React.FC<{ href?: string }> = () => (

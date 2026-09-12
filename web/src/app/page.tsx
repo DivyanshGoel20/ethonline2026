@@ -97,7 +97,10 @@ export default function Dashboard() {
           const { human } = await res.json();
           setIsWorldVerified(true);
           setNullifierHash(human);
-          await loadAgents();
+          // Deliberately not awaited. Whether to show the gate is already
+          // decided; holding the whole app on a spinner because an RPC behind
+          // /api/agents is rate-limited is a bad trade.
+          void loadAgents();
         }
       } catch {
         /* no session: the gate takes it from here */
@@ -317,9 +320,8 @@ export default function Dashboard() {
 
         <SmartContractTelemetry humanOwner={nullifierHash} refreshTrigger={refreshTrigger} />
 
-        <footer className="pt-4 flex flex-wrap justify-between gap-4">
+        <footer className="pt-4">
           <Label>Float &middot; credit for machines that spend</Label>
-          <Label>Arc &middot; World</Label>
         </footer>
       </main>
 

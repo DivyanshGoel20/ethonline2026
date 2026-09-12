@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { selfieCheckLegacy } from "@worldcoin/idkit";
 import type { RpContext, IDKitResult } from "@worldcoin/idkit";
-import { Wave, Wordmark, ErrorNote } from "./ui";
+import { Wave, Boat, Wordmark, ErrorNote } from "./ui";
 
 const IDKitRequestWidget = dynamic(
   () => import("@worldcoin/idkit").then((mod) => mod.IDKitRequestWidget),
@@ -153,15 +153,13 @@ export const WorldAuthGate: React.FC<WorldAuthGateProps> = ({ onVerified }) => {
       {/* the line, at zero */}
       <div className="relative shrink-0" style={{ height: 66, background: "var(--sea)", color: "var(--sea)" }}>
         <Wave />
+        <Boat className="boat-band" />
         <div
-          className="absolute inset-x-0 bottom-4 max-w-[1200px] mx-auto px-6 sm:px-10 flex flex-wrap justify-between gap-3"
+          className="absolute inset-x-0 bottom-4 max-w-[1200px] mx-auto px-6 sm:px-10"
           style={{ color: "var(--paper)" }}
         >
           <span className="mn" style={{ fontSize: 9.5, opacity: 0.82 }}>
             $0.00 drawn of $10.00
-          </span>
-          <span className="mn" style={{ fontSize: 9.5, opacity: 0.82 }}>
-            Arc &middot; World
           </span>
         </div>
       </div>
