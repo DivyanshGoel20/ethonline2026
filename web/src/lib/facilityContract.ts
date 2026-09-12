@@ -354,31 +354,23 @@ export async function executeOnChainDrawdown(params: {
   const profileId = computeProfileId(params.humanOwner);
   const amountUnits = parseUnits(params.amountUsdc.toFixed(6), 6);
 
-  // 1. Ensure Profile exists on Arc Testnet
-  try {
-    const profile = (await publicClient
-      .readContract({
-        address: FLOAT_CREDIT_FACILITY_ADDRESS,
-        abi: FLOAT_CREDIT_FACILITY_ABI,
-        functionName: "getProfile",
-        args: [profileId],
-      })
-      .catch(() => null)) as any;
+  // 1. The profile must already exist. Spending credit is not the moment to
+  //    decide someone deserves credit: this used to open a funded profile for
+  //    whatever humanOwner the caller named, which meant the borrow path could
+  //    underwrite its own borrower.
+  const profile = (await publicClient
+    .readContract({
+      address: FLOAT_CREDIT_FACILITY_ADDRESS,
+      abi: FLOAT_CREDIT_FACILITY_ABI,
+      functionName: "getProfile",
+      args: [profileId],
+    })
+    .catch(() => null)) as any;
 
-    if (!profile || Number(profile.createdAt) === 0) {
-      console.log(`[Drawdown] Initializing on-chain profile ${profileId} on Arc Testnet...`);
-      const humanRoot = computeProfileId(params.humanOwner);
-      const createTx = await walletClient.writeContract({
-        address: FLOAT_CREDIT_FACILITY_ADDRESS,
-        abi: FLOAT_CREDIT_FACILITY_ABI,
-        functionName: "createCreditProfile",
-        args: [profileId, account.address, humanRoot, parseUnits("10", 6)],
-      });
-      await publicClient.waitForTransactionReceipt({ hash: createTx });
-      console.log(`[Drawdown] Created profile in tx ${createTx}`);
-    }
-  } catch (profErr: any) {
-    console.warn("[Drawdown] Profile check notice:", profErr.message || profErr);
+  if (!profile || Number(profile.createdAt) === 0) {
+    throw new Error(
+      "No on-chain credit profile for this human. Verify with World ID before drawing on the facility."
+    );
   }
 
   // 2. Ensure Agent is authorized for this profile on Arc Testnet
@@ -391,21 +383,13 @@ export async function executeOnChainDrawdown(params: {
     })
     .catch(() => false);
 
+  // Authorisation is the human's decision, made once at agent registration.
+  // Granting it here on demand made the check ceremonial - any agent could draw
+  // on any profile simply by trying to.
   if (!isAuth) {
-    console.log(`[Drawdown] Authorizing agent ${params.agentAddress} for profile ${profileId} on Arc Testnet...`);
-    try {
-      const authTx = await walletClient.writeContract({
-        address: FLOAT_CREDIT_FACILITY_ADDRESS,
-        abi: FLOAT_CREDIT_FACILITY_ABI,
-        functionName: "authorizeAgent",
-        args: [profileId, params.agentAddress as `0x${string}`],
-      });
-      await publicClient.waitForTransactionReceipt({ hash: authTx });
-      console.log(`[Drawdown] Agent authorized on Arc Testnet in tx ${authTx}`);
-    } catch (authErr: any) {
-      console.error("[Drawdown] Agent authorization failed:", authErr.message || authErr);
-      throw new Error(`Failed to authorize agent on Arc Testnet: ${authErr.shortMessage || authErr.message}`);
-    }
+    throw new Error(
+      `Agent ${params.agentAddress} is not authorized to draw on this credit profile.`
+    );
   }
 
   // 3. Record Drawdown on Arc Testnet
@@ -599,15 +583,15 @@ export async function syncAgentToContractOnChain(
       })
       .catch(() => null);
 
+    // Deliberately does not create the profile. Underwriting happens in exactly
+    // one place - the World-verified path in ensureHumanProfileOnChain - because
+    // this function is reachable from agent registration, and minting credit
+    // there let anyone open a funded profile against a humanRoot of their own
+    // choosing, with no proof of personhood anywhere in the path.
     if (!existing || Number(existing.createdAt) === 0) {
-      const humanRoot = keccak256(encodePacked(["string"], [humanOwner]));
-      const createTx = await walletClient.writeContract({
-        address: FLOAT_CREDIT_FACILITY_ADDRESS,
-        abi: FLOAT_CREDIT_FACILITY_ABI,
-        functionName: "createCreditProfile",
-        args: [profileId, account.address, humanRoot, parseUnits("10", 6)],
-      });
-      await publicClient.waitForTransactionReceipt({ hash: createTx });
+      throw new Error(
+        "No credit profile for this human. Verify with World ID before registering an agent."
+      );
     }
 
     const authTx = await walletClient.writeContract({

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getHuman, unauthenticated } from "@/lib/session";
 import { Agent } from "@/types";
 import { getAllAgents, addAgentToStore, getAgentsByOwner, removeAgentFromStore } from "@/lib/agentStore";
 import { validateArcAgentWallet } from "@/lib/arc";
@@ -15,10 +16,13 @@ function sanitizeAgentForClient(agent: Agent): Agent {
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const owner = searchParams.get("owner");
+    // Scoped to the session rather than to an `owner` query param. Listing every
+    // agent also published `isAutonomous` per address, which amounted to an
+    // index of exactly which keys this server holds.
+    const human = getHuman(req);
+    if (!human) return unauthenticated();
 
-    const rawAgents = owner ? getAgentsByOwner(owner) : getAllAgents();
+    const rawAgents = getAgentsByOwner(human);
 
     // Query live Circle Gateway balance for each registered agent
     let floatSigner: FloatSignerTS | null = null;
@@ -61,8 +65,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Registering an agent binds it to a credit line, so it takes a verified
+    // human. The owner comes from the session: taking it from the body let a
+    // caller register agents under anyone's profile - or under a string they
+    // invented, which the chain would then underwrite.
+    const human = getHuman(req);
+    if (!human) return unauthenticated();
+
     const body = await req.json();
-    const { name, walletAddress, humanOwner, privateKey } = body;
+    const { name, walletAddress, privateKey } = body;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
@@ -101,7 +112,7 @@ export async function POST(req: NextRequest) {
       agentId: `agent_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       address: formattedAddress,
       name: name.trim(),
-      humanOwner: humanOwner || "anonymous_human",
+      humanOwner: human,
       network: "Arc Testnet (5042002)",
       creditLimit: 10,
       outstandingDebt: 0,
@@ -118,11 +129,22 @@ export async function POST(req: NextRequest) {
 
     const saved = addAgentToStore(newAgent);
 
-    // Synchronize agent authorization and profile creation to Arc Testnet contract
+    // Authorize the agent against the human's existing profile. This no longer
+    // creates the profile - if World verification never provisioned one, the
+    // agent stays unauthorized and the caller is told why, rather than being
+    // handed a credit line nobody underwrote.
+    let authorizedOnChain = true;
+    let authorizationError: string | undefined;
     try {
-      await syncAgentToContractOnChain(newAgent.address, newAgent.humanOwner);
+      const synced = await syncAgentToContractOnChain(newAgent.address, newAgent.humanOwner);
+      if (!synced) {
+        authorizedOnChain = false;
+        authorizationError = "Arc Testnet authorization did not complete.";
+      }
     } catch (contractErr: any) {
-      console.warn("[Agents-API] On-chain agent authorization notice:", contractErr.message || contractErr);
+      authorizedOnChain = false;
+      authorizationError = contractErr?.message || String(contractErr);
+      console.warn("[Agents-API] On-chain agent authorization failed:", authorizationError);
     }
 
     return NextResponse.json({
@@ -130,7 +152,11 @@ export async function POST(req: NextRequest) {
       agent: sanitizeAgentForClient(saved),
       agentBookStatus: agentBookInfo.agentBookStatus,
       isWorldBacked: agentBookInfo.isWorldBacked,
-      message: `Agent ${saved.name} verified on Arc Testnet and registered to credit facility.`,
+      authorizedOnChain,
+      ...(authorizationError ? { authorizationError } : {}),
+      message: authorizedOnChain
+        ? `Agent ${saved.name} verified on Arc Testnet and authorized against your credit facility.`
+        : `Agent ${saved.name} registered, but it is not yet authorized on Arc Testnet and cannot draw credit.`,
     });
   } catch (error: any) {
     console.error("[Agents-API] Error:", error);
@@ -153,10 +179,20 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    const human = getHuman(req);
+    if (!human) return unauthenticated();
+
     const all = getAllAgents();
     const existing = all.find(
       (a) => a.address.toLowerCase() === address.toLowerCase()
     );
+
+    if (existing && (existing.humanOwner || "").toLowerCase() !== human.toLowerCase()) {
+      return NextResponse.json(
+        { error: "That agent belongs to a different human.", code: "not_your_agent" },
+        { status: 403 }
+      );
+    }
 
     if (!existing) {
       return NextResponse.json(

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireOwnedAgent } from "@/lib/session";
 import { BorrowRequest, BorrowResponse } from "@/types";
 import {
   getAgentByAddress,
@@ -36,6 +37,12 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Drawing on a credit line is the human's call, not anyone who knows an
+    // agent address. This is the same hole as /api/pay, reachable by a
+    // different door.
+    const auth = requireOwnedAgent(req, agentAddress);
+    if ("error" in auth) return auth.error;
 
     // 1. Check Agent in Store
     const agent = getAgentByAddress(agentAddress);

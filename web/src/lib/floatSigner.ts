@@ -178,11 +178,14 @@ export class FloatSignerTS {
 
     // Resolve Human Credit Profile
     const agent = getAgentByAddress(agentContext.agentAddress);
-    const humanOwner =
-      agentContext.humanProfileId ||
-      agent?.humanOwner ||
-      process.env.HUMAN_OWNER ||
-      "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3";
+    // Supplied by the caller only after a World session has been verified and
+    // the agent confirmed to belong to that human. The old fallback chain ended
+    // in a hardcoded address, so a missing identity quietly became somebody
+    // else's credit line rather than an error.
+    const humanOwner = agentContext.humanProfileId;
+    if (!humanOwner) {
+      throw new Error("No verified human is associated with this payment.");
+    }
 
     const paymentId = `pay_${Date.now()}_${Math.random()
       .toString(36)

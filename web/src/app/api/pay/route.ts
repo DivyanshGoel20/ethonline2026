@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { FloatSignerTS } from "@/lib/floatSigner";
 import { getAgentPrivateKey } from "@/lib/agentKeys";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
+import { requireOwnedAgent } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { url, agentAddress, agentPrivateKey, humanProfileId, method, body: reqBody } = body;
+    const { url, agentAddress, method, body: reqBody } = body;
 
     if (!url) {
       return NextResponse.json(
@@ -22,8 +23,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectiveAgentKey =
-      agentPrivateKey || getAgentPrivateKey(agentAddress) || undefined;
+    // The route used to take humanProfileId from the body, which is the whole
+    // ballgame: the resource server named in `url` also dictates the amount and
+    // the payee, so an unauthenticated caller could bill any human they liked
+    // and have Float's funding wallet pay an address they controlled. The payer
+    // is now whoever holds a World session, and they may only spend through
+    // their own agents.
+    const auth = requireOwnedAgent(req, agentAddress);
+    if ("error" in auth) return auth.error;
+
+    // Server-custodied keys only. A key supplied in the request body was never
+    // Float's to sign with.
+    const effectiveAgentKey = getAgentPrivateKey(agentAddress) || undefined;
 
     const floatSigner = new FloatSignerTS();
 
@@ -32,7 +43,7 @@ export async function POST(req: NextRequest) {
       {
         agentAddress,
         agentPrivateKey: effectiveAgentKey,
-        humanProfileId,
+        humanProfileId: auth.human,
       },
       {
         method: method || "GET",
@@ -40,7 +51,7 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    invalidateTelemetryCache(humanProfileId);
+    invalidateTelemetryCache(auth.human);
 
     return NextResponse.json(result);
   } catch (error: any) {
@@ -67,6 +78,9 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const auth = requireOwnedAgent(req, agentAddress);
+    if ("error" in auth) return auth.error;
 
     const floatSigner = new FloatSignerTS();
     const balance = await floatSigner.getAgentGatewayBalance(agentAddress);

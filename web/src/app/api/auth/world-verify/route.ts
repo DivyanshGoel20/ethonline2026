@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyWorldSelfieProof } from "@/lib/world";
 import { ensureHumanProfileOnChain } from "@/lib/facilityContract";
+import { attachSession } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,14 +58,20 @@ export async function POST(req: NextRequest) {
       console.warn("[World-Verify] Could not provision on-chain profile:", profileError);
     }
 
-    return NextResponse.json({
-      verified: true,
-      nullifierHash,
-      verificationLevel: "selfie",
-      profileProvisioned,
-      ...(profileError ? { profileError } : {}),
-      message: "Human operator authenticated via World Selfie Check",
-    });
+    // The proof is the only thing that mints a session. Everything downstream
+    // that spends credit or signs with a custodied key reads the human's
+    // identity from this cookie rather than from a request body.
+    return attachSession(
+      NextResponse.json({
+        verified: true,
+        nullifierHash,
+        verificationLevel: "selfie",
+        profileProvisioned,
+        ...(profileError ? { profileError } : {}),
+        message: "Human operator authenticated via World Selfie Check",
+      }),
+      nullifierHash
+    );
   } catch (error: any) {
     console.error("[World-Verify] Handler exception:", error);
     return NextResponse.json(

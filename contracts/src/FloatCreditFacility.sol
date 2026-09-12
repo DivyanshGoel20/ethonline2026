@@ -133,7 +133,19 @@ contract FloatCreditFacility {
         require(msg.sender == owner || msg.sender == humanOwner, "Unauthorized");
         require(profiles[profileId].createdAt == 0, "Profile already exists");
         require(humanOwner != address(0), "Invalid human owner");
-        require(humanToProfile[humanOwner] == bytes32(0), "Human already has a profile");
+
+        if (msg.sender == owner) {
+            // Float underwrites every profile from a single operator wallet, so
+            // the humanOwner address says nothing about uniqueness here. The
+            // World nullifier is what makes a human unique, and an underwritten
+            // profile without one would have no Sybil control at all.
+            require(humanRoot != bytes32(0), "Underwritten profile needs a human root");
+        } else {
+            // Self-registration: the caller really is the human, so one address
+            // gets one profile. It carries no credit either way.
+            require(humanToProfile[humanOwner] == bytes32(0), "Human already has a profile");
+        }
+
         if (humanRoot != bytes32(0)) {
             require(humanRootToProfile[humanRoot] == bytes32(0), "Human root already used");
         }
@@ -156,7 +168,7 @@ contract FloatCreditFacility {
         });
 
         profileIds.push(profileId);
-        humanToProfile[humanOwner] = profileId;
+        if (msg.sender != owner) humanToProfile[humanOwner] = profileId;
         if (humanRoot != bytes32(0)) humanRootToProfile[humanRoot] = profileId;
 
         emit CreditProfileCreated(profileId, humanOwner, humanRoot, limit);
