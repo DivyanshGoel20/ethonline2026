@@ -5,7 +5,7 @@ import { Agent } from "@/types";
 import { Copy, Check, Info } from "lucide-react";
 import { Label, short, usd } from "./ui";
 
-const COL_NUM = 96;
+const COL_NUM = 88;
 const COL_ACTIONS = 300;
 
 /** Column headings, printed once above the list. */
@@ -14,6 +14,9 @@ export const AgentListHeader: React.FC = () => (
     <Label className="flex-1">Agent</Label>
     <Label className="text-right" style={{ width: COL_NUM }}>
       Wallet
+    </Label>
+    <Label className="text-right" style={{ width: COL_NUM }}>
+      Gateway
     </Label>
     <Label className="text-right" style={{ width: COL_NUM }}>
       Owes
@@ -50,7 +53,10 @@ export const AgentRow: React.FC<AgentRowProps> = ({
   const [copied, setCopied] = useState(false);
 
   const worldBacked = agent.isWorldBacked || agent.agentBookStatus === "VERIFIED";
-  const wallet = parseFloat(agent.gatewayBalanceUSDC ?? String(agent.currentBalance ?? 0)) || 0;
+  // Two different numbers. Held in the wallet, versus deposited into Circle
+  // Gateway and therefore actually spendable on an x402 charge.
+  const wallet = parseFloat(agent.walletUsdc ?? "0") || 0;
+  const gateway = parseFloat(agent.gatewayBalanceUSDC ?? String(agent.currentBalance ?? 0)) || 0;
 
   const copy = () => {
     navigator.clipboard.writeText(agent.address);
@@ -100,6 +106,21 @@ export const AgentRow: React.FC<AgentRowProps> = ({
             style={{ fontSize: 13.5, color: wallet > 0 ? "var(--ink)" : "var(--ink3)" }}
           >
             {usd(wallet)}
+          </span>
+        </div>
+
+        <div className="text-left lg:text-right" style={{ width: COL_NUM }}>
+          <Label className="lg:hidden mb-1">Gateway</Label>
+          <span
+            className="mn"
+            style={{ fontSize: 13.5, color: gateway > 0 ? "var(--ink)" : "var(--flare)" }}
+            title={
+              gateway > 0
+                ? "Deposited into Circle Gateway and spendable"
+                : "Nothing in Circle Gateway - an x402 charge here needs the overdraft"
+            }
+          >
+            {usd(gateway)}
           </span>
         </div>
 

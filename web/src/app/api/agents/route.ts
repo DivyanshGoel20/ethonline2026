@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHuman, unauthenticated } from "@/lib/session";
+import { getAgentWalletUsdc } from "@/lib/walletBalance";
 import { Agent } from "@/types";
 import { getAllAgents, addAgentToStore, getAgentsByOwner, removeAgentFromStore } from "@/lib/agentStore";
 import { validateArcAgentWallet } from "@/lib/arc";
@@ -43,10 +44,15 @@ export async function GET(req: NextRequest) {
             // fallback to stored balance
           }
         }
+        // The wallet balance and the Gateway balance answer different questions:
+        // what the agent holds, and what it can actually spend through x402.
+        const walletUsdc = await getAgentWalletUsdc(agent.address);
+
         return {
           ...agent,
           currentBalance: parseFloat(liveGw) || 0,
           gatewayBalanceUSDC: liveGw,
+          walletUsdc,
           isAutonomous: hasAgentPrivateKey(agent.address),
         };
       })

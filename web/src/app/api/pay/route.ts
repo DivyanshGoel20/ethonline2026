@@ -3,6 +3,7 @@ import { FloatSignerTS } from "@/lib/floatSigner";
 import { getAgentPrivateKey } from "@/lib/agentKeys";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 import { requireOwnedAgent } from "@/lib/session";
+import { getAgentWalletUsdc } from "@/lib/walletBalance";
 
 export async function POST(req: NextRequest) {
   try {
@@ -88,6 +89,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       agentAddress,
       gatewayAvailableUSDC: balance.formattedAvailable,
+      walletUsdc: await getAgentWalletUsdc(agentAddress),
       floatFundingAddress: floatSigner.fundingAddress,
       creditFacilityAddress: floatSigner.creditFacilityAddress,
     });

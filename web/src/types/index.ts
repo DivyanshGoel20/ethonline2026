@@ -17,6 +17,7 @@ export interface Agent {
   totalRepaid: number;       // in USDC
   currentBalance: number;    // in USDC
   gatewayBalanceUSDC?: string; // Live Circle Gateway available USDC
+  walletUsdc?: string;         // Native USDC held in the agent's Arc wallet
   isAutonomous?: boolean;      // Whether agent private key is bound for autonomous self-signing
   status: "Healthy" | "Active" | "Delinquent" | "Suspended";
   registeredAt: number;

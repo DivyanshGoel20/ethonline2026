@@ -35,12 +35,17 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
   facilityAvailable,
   onPaymentSuccess,
 }) => {
-  const [url, setUrl] = useState("http://localhost:3000/premium-data");
+  // The premium API is a separate Express service. Pointing this at the Next
+  // app just 404s, which is not a payment failure but looks exactly like one.
+  const [url, setUrl] = useState(
+    process.env.NEXT_PUBLIC_X402_RESOURCE_URL || "http://localhost:4402/premium-data"
+  );
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any | null>(null);
   const [wallet, setWallet] = useState<string>("0.00");
+  const [gateway, setGateway] = useState<string>("0.00");
   const [copied, setCopied] = useState(false);
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -59,8 +64,14 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
 
     fetch(`/api/pay?agentAddress=${agent.address}`)
       .then((r) => r.json())
-      .then((d) => setWallet(d.gatewayAvailableUSDC ?? "0.00"))
-      .catch(() => setWallet("0.00"));
+      .then((d) => {
+        setWallet(d.walletUsdc ?? "0.00");
+        setGateway(d.gatewayAvailableUSDC ?? "0.00");
+      })
+      .catch(() => {
+        setWallet("0.00");
+        setGateway("0.00");
+      });
 
     return clearTimers;
   }, [isOpen, agent]);
@@ -198,12 +209,18 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
 
       <div className="panel-sunk flex">
         <div className="flex-1 px-4 py-3.5" style={{ borderRight: "1px solid var(--rule)" }}>
-          <Label>Agent wallet</Label>
+          <Label>Wallet</Label>
+          <div className="mn mt-1.5" style={{ fontSize: 19 }}>
+            ${wallet}
+          </div>
+        </div>
+        <div className="flex-1 px-4 py-3.5" style={{ borderRight: "1px solid var(--rule)" }}>
+          <Label>Circle Gateway</Label>
           <div
             className="mn mt-1.5"
-            style={{ fontSize: 19, color: parseFloat(wallet) > 0 ? "var(--ink)" : "var(--flare)" }}
+            style={{ fontSize: 19, color: parseFloat(gateway) > 0 ? "var(--ink)" : "var(--flare)" }}
           >
-            ${wallet}
+            ${gateway}
           </div>
         </div>
         <div className="flex-1 px-4 py-3.5">
@@ -213,6 +230,13 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
           </div>
         </div>
       </div>
+
+      {parseFloat(wallet) > 0 && parseFloat(gateway) <= 0 && (
+        <div className="note note-warn" style={{ color: "var(--ink2)" }}>
+          This agent holds ${wallet} on Arc but has nothing deposited into Circle Gateway, so it
+          cannot settle the charge from its own funds. This is the gap the overdraft covers.
+        </div>
+      )}
 
       {/* the sequence */}
       <div className="relative pl-8">
