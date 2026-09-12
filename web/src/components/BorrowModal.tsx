@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Agent } from "@/types";
-import { X, ArrowDownLeft, AlertCircle } from "lucide-react";
+import { X, ArrowDownLeft, AlertCircle, Clock, ShieldCheck } from "lucide-react";
 
 interface BorrowModalProps {
   agent: Agent | null;
@@ -32,14 +32,19 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
 
   if (!isOpen || !agent) return null;
 
-  const agentAvailable = Math.max(0, agent.creditLimit - agent.outstandingDebt);
-  const availableCredit = maxFacilityCredit !== undefined 
-    ? Math.min(agentAvailable, maxFacilityCredit) 
-    : agentAvailable;
+  // Enforce strictly shared facility headroom across all sibling agents
+  const availableCredit =
+    maxFacilityCredit !== undefined
+      ? maxFacilityCredit
+      : Math.max(0, agent.creditLimit - agent.outstandingDebt);
+
   const parsedAmount = parseFloat(amount) || 0;
-  const isOverLimit = parsedAmount > availableCredit;
-  const newDebt = agent.outstandingDebt + parsedAmount;
-  const remainingHeadroom = Math.max(0, availableCredit - parsedAmount);
+  const isOverLimit = parsedAmount > availableCredit + 0.005;
+
+  const originationFee = Math.round(parsedAmount * 0.01 * 1000) / 1000;
+  const initialTotalDue = Math.round((parsedAmount + originationFee) * 1000) / 1000;
+  const newDebt = Math.round((agent.outstandingDebt + initialTotalDue) * 100) / 100;
+  const remainingHeadroom = Math.max(0, Math.round((availableCredit - parsedAmount) * 100) / 100);
 
   const handlePercentage = (pct: number) => {
     const val = (availableCredit * pct).toFixed(2);
@@ -92,16 +97,16 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {/* Credit Context */}
+          {/* Shared Facility Headroom Context */}
           <div className="p-3 rounded-lg bg-zinc-900/60 border border-white/[0.04] flex items-center justify-between text-xs font-mono">
             <div>
-              <div className="text-zinc-500 text-[10px] uppercase">Available Headroom</div>
+              <div className="text-zinc-500 text-[10px] uppercase">Shared Facility Headroom</div>
               <div className="text-sm font-semibold text-emerald-400 mt-0.5">
                 ${availableCredit.toFixed(2)} USDC
               </div>
             </div>
             <div className="text-right">
-              <div className="text-zinc-500 text-[10px] uppercase">Current Debt</div>
+              <div className="text-zinc-500 text-[10px] uppercase">Agent Current Debt</div>
               <div className="text-sm font-medium text-zinc-300 mt-0.5">
                 ${agent.outstandingDebt.toFixed(2)} USDC
               </div>
@@ -143,12 +148,42 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
             </div>
           </div>
 
+          {/* Dual-Fee and 7-Day Maturity Terms */}
+          <div className="p-3 rounded-lg bg-zinc-950/80 border border-white/[0.05] space-y-2 text-xs">
+            <div className="flex items-center justify-between font-mono text-[11px] text-zinc-400">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+                Origination Fee:
+              </span>
+              <span className="text-zinc-200">1.0% upfront</span>
+            </div>
+            <div className="flex items-center justify-between font-mono text-[11px] text-zinc-400">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                Daily Interest:
+              </span>
+              <span className="text-zinc-200">0.05% / day</span>
+            </div>
+            <div className="flex items-center justify-between font-mono text-[11px] text-zinc-400">
+              <span>Max Maturity Window:</span>
+              <span className="text-emerald-400 font-semibold">Strict 7 Days</span>
+            </div>
+          </div>
+
           {/* Breakdown / Impact */}
           {parsedAmount > 0 && (
             <div className="p-3 rounded-lg bg-zinc-950/70 border border-white/[0.04] space-y-1.5 text-xs font-mono">
               <div className="flex justify-between text-zinc-400">
-                <span>New Debt Balance</span>
-                <span className="text-zinc-200">${newDebt.toFixed(2)} USDC</span>
+                <span>Disbursed to Wallet</span>
+                <span className="text-zinc-200">${parsedAmount.toFixed(2)} USDC</span>
+              </div>
+              <div className="flex justify-between text-zinc-400">
+                <span>1.0% Origination Fee</span>
+                <span className="text-amber-400">+${originationFee.toFixed(2)} USDC</span>
+              </div>
+              <div className="border-t border-white/[0.05] pt-1 flex justify-between text-zinc-400">
+                <span>Initial Total Due</span>
+                <span className="text-white font-medium">${initialTotalDue.toFixed(2)} USDC</span>
               </div>
               <div className="flex justify-between text-zinc-400">
                 <span>Remaining Headroom</span>

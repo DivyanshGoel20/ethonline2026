@@ -1,0 +1,10 @@
+{
+  "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077": {
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "totalInterestPaid": 0.3504,
+    "totalActiveDurationDays": 0,
+    "repaymentsCount": 5,
+    "currentTierNumber": 1,
+    "lastRepaymentAt": 1789207290721
+  }
+}

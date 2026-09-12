@@ -1,9 +1,12 @@
 import { GatewayClient } from "@circle-fin/x402-batching/client";
 
 async function main() {
+  const pk = (process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY) as `0x${string}`;
+  if (!pk) throw new Error("Missing PRIVATE_KEY in environment (.env)");
+
   const client = new GatewayClient({
     chain: "arcTestnet",
-    privateKey: "0x0000000000000000000000000000000000000000000000000000000000000001",
+    privateKey: pk,
   });
 
   const addresses = [

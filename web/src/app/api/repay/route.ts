@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Check if there is any debt to repay
     const humanFacility = getHumanFacilityStats(payingAgent.humanOwner);
-    if (humanFacility.totalOutstandingDebt <= 0) {
+    if (humanFacility.totalOutstandingDebt <= 0.0001) {
       return NextResponse.json(
         {
           success: false,
@@ -96,22 +96,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Floating-point safety: Clamp repayAmount to total debt with epsilon tolerance
+    const effectiveRepayAmount = Math.min(
+      repayAmount,
+      Math.round((humanFacility.totalOutstandingDebt + 0.0001) * 10000) / 10000
+    );
+
     // 4. Real On-Chain Arc Testnet Settlement
     let arcTxHash = txHash;
+    let transferTxHash: string | undefined = undefined;
     if (!arcTxHash) {
       const onChainRepay = await executeOnChainRepayment({
         humanOwner: payingAgent.humanOwner,
         payerAddress: payingAgent.address,
         agentAddress: beneficiaryAddress,
-        amountUsdc: repayAmount,
+        amountUsdc: effectiveRepayAmount,
       });
       arcTxHash = onChainRepay.txHash;
+      transferTxHash = onChainRepay.transferTxHash;
     }
 
-    // 5. Process Repayment against Loan Ledger
+    // 5. Process Repayment against Loan Ledger (FIFO: oldest loan first, interest then principal)
     const result = processRepayment({
       payingAgentAddress: payingAgent.address,
-      amount: repayAmount,
+      amount: effectiveRepayAmount,
       targetAgentAddress: beneficiaryAddress,
       targetLoanId,
       humanOwner: payingAgent.humanOwner,
@@ -122,24 +130,21 @@ export async function POST(req: NextRequest) {
     const humanAgents = getAgentsByOwner(payingAgent.humanOwner);
     for (const a of humanAgents) {
       const activeLoans = getLoansByAgent(a.address).filter(
-        (l) => l.status === "ACTIVE"
+        (l) => l.status === "ACTIVE" && (l.outstandingAmount || 0) > 0.0001
       );
-      const remainingDebt = activeLoans.reduce(
-        (sum, l) => sum + l.outstandingAmount,
-        0
-      );
-      const isBeneficiary =
-        a.address.toLowerCase() === beneficiaryAddress.toLowerCase();
+      const remainingDebt = Math.round(
+        activeLoans.reduce((sum, l) => sum + l.outstandingAmount, 0) * 10000
+      ) / 10000;
       const isPayer =
         a.address.toLowerCase() === payingAgent.address.toLowerCase();
 
       updateAgentInStore(a.address, {
         outstandingDebt: remainingDebt,
         currentBalance: isPayer
-          ? Math.max(0, a.currentBalance - result.amountRepaid)
+          ? Math.max(0, Math.round((a.currentBalance - result.amountRepaid) * 10000) / 10000)
           : a.currentBalance,
         totalRepaid: isPayer
-          ? a.totalRepaid + result.amountRepaid
+          ? Math.round((a.totalRepaid + result.amountRepaid) * 10000) / 10000
           : a.totalRepaid,
         status: remainingDebt === 0 ? "Healthy" : "Active",
       });
@@ -148,9 +153,13 @@ export async function POST(req: NextRequest) {
     const updatedFacility = getHumanFacilityStats(payingAgent.humanOwner);
     const updatedBeneficiary = getAgentByAddress(beneficiaryAddress);
 
+    const { getHumanCreditTier } = await import("@/lib/reputationStore");
+    const currentTier = getHumanCreditTier(payingAgent.humanOwner);
+
     const response: RepayResponse = {
       success: true,
       txHash: arcTxHash,
+      transferTxHash,
       amount: result.amountRepaid,
       remainingDebt: updatedBeneficiary?.outstandingDebt || 0,
       refundExcess: result.remainingExcessAmount,
@@ -158,18 +167,30 @@ export async function POST(req: NextRequest) {
       beneficiaryAgentAddress: beneficiaryAddress,
       facilityTotalDebt: updatedFacility.totalOutstandingDebt,
       settledLoans: result.settledLoans,
+      interestPaid: result.interestPaid,
+      principalPaid: result.principalPaid,
+      currentTierName: currentTier.name,
+      newCreditLimit: currentTier.creditLimit,
     };
 
     const message =
       result.remainingExcessAmount > 0
         ? `Repaid $${result.amountRepaid.toFixed(
             2
-          )} USDC on Arc Testnet (debt settled). Unapplied excess of $${result.remainingExcessAmount.toFixed(
+          )} USDC on Arc Testnet (principal: $${result.principalPaid.toFixed(
+            2
+          )}, interest/fee: $${result.interestPaid.toFixed(
+            2
+          )}). Unapplied excess of $${result.remainingExcessAmount.toFixed(
             2
           )} USDC was NOT deducted and remains in agent wallet.`
         : `Repaid $${result.amountRepaid.toFixed(
             2
-          )} USDC on Arc Testnet. Facility outstanding debt: $${updatedFacility.totalOutstandingDebt.toFixed(
+          )} USDC on Arc Testnet (principal: $${result.principalPaid.toFixed(
+            2
+          )}, interest/fee: $${result.interestPaid.toFixed(
+            2
+          )}). Facility outstanding debt: $${updatedFacility.totalOutstandingDebt.toFixed(
             2
           )} USDC.`;
 

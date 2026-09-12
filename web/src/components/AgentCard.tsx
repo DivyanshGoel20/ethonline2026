@@ -2,10 +2,28 @@
 
 import React, { useState } from "react";
 import { Agent } from "@/types";
-import { Copy, Check, ArrowDownLeft, ArrowUpRight, CheckCircle2, Globe, Trash2, Zap, Coins, ExternalLink } from "lucide-react";
+import {
+  Copy,
+  Check,
+  ArrowDownLeft,
+  ArrowUpRight,
+  CheckCircle2,
+  Globe,
+  Trash2,
+  Zap,
+  Coins,
+  ExternalLink,
+  Clock,
+  Layers,
+} from "lucide-react";
 
 interface AgentCardProps {
   agent: Agent;
+  facilityStats?: {
+    totalCreditLimit: number;
+    totalAvailableCredit: number;
+    totalOutstandingDebt: number;
+  };
   onOpenBorrow: (agent: Agent) => void;
   onOpenRepay: (agent: Agent) => void;
   onOpenPay?: (agent: Agent) => void;
@@ -16,6 +34,7 @@ interface AgentCardProps {
 
 export const AgentCard: React.FC<AgentCardProps> = ({
   agent,
+  facilityStats,
   onOpenBorrow,
   onOpenRepay,
   onOpenPay,
@@ -25,7 +44,13 @@ export const AgentCard: React.FC<AgentCardProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const availableCredit = Math.max(0, agent.creditLimit - agent.outstandingDebt);
+  // Strictly shared facility available credit across all sibling agents
+  const sharedAvailableCredit =
+    facilityStats !== undefined
+      ? facilityStats.totalAvailableCredit
+      : Math.max(0, agent.creditLimit - agent.outstandingDebt);
+
+  const sharedLimit = facilityStats ? facilityStats.totalCreditLimit : 10;
   const isWorldBacked = agent.isWorldBacked || agent.agentBookStatus === "VERIFIED";
 
   const handleCopy = (e: React.MouseEvent) => {
@@ -37,7 +62,9 @@ export const AgentCard: React.FC<AgentCardProps> = ({
 
   const utilization = Math.min(
     100,
-    Math.round((agent.outstandingDebt / agent.creditLimit) * 100)
+    Math.round(
+      ((facilityStats?.totalOutstandingDebt || agent.outstandingDebt) / sharedLimit) * 100
+    )
   );
 
   return (
@@ -79,7 +106,10 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               </a>
 
               {agent.isAutonomous && (
-                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 text-[10px] font-mono flex items-center gap-1" title="Autonomous Agent Signer active">
+                <span
+                  className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/25 text-[10px] font-mono flex items-center gap-1"
+                  title="Autonomous Agent Signer active"
+                >
                   <Zap className="w-2.5 h-2.5 text-amber-400" />
                   <span>Auto-Signer</span>
                 </span>
@@ -133,27 +163,39 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           </div>
         </div>
 
-        {/* Primary Financial Metric Readout (Float Credit Headroom) */}
-        <div className="pt-1">
+        {/* Primary Financial Metric Readout (Shared Facility Pool) */}
+        <div className="pt-1 space-y-1.5">
           <div className="flex items-baseline justify-between text-xs font-medium">
             <span className="text-white tabular-nums">
               ${agent.outstandingDebt.toFixed(2)}{" "}
-              <span className="text-[11px] font-normal text-zinc-400">Float debt</span>
+              <span className="text-[11px] font-normal text-zinc-400">agent debt</span>
             </span>
-            <span className="text-zinc-400 tabular-nums">
-              ${availableCredit.toFixed(2)}{" "}
-              <span className="text-[11px] font-normal text-zinc-500">credit available</span>
+            <span className="text-emerald-400 tabular-nums font-mono text-xs">
+              ${sharedAvailableCredit.toFixed(2)}{" "}
+              <span className="text-[10px] font-sans text-zinc-400">shared headroom</span>
             </span>
           </div>
 
           {/* Minimal utilization track */}
-          <div className="w-full h-1 bg-white/[0.06] rounded-full mt-2 overflow-hidden">
+          <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
                 utilization > 80 ? "bg-amber-400" : "bg-emerald-400"
               }`}
               style={{ width: `${Math.max(utilization, agent.outstandingDebt > 0 ? 3 : 0)}%` }}
             />
+          </div>
+
+          {/* Shared Facility Subtext */}
+          <div className="flex items-center justify-between text-[10px] text-zinc-500 font-mono pt-0.5">
+            <span className="flex items-center gap-1">
+              <Layers className="w-2.5 h-2.5 text-zinc-400" />
+              Shared pool: ${sharedLimit}.00
+            </span>
+            <span className="flex items-center gap-1 text-zinc-400">
+              <Clock className="w-2.5 h-2.5 text-cyan-400" />
+              {agent.outstandingDebt > 0 ? "7d Max Window" : "Zero active debt"}
+            </span>
           </div>
         </div>
 
@@ -174,7 +216,12 @@ export const AgentCard: React.FC<AgentCardProps> = ({
         {/* Draw Button */}
         <button
           onClick={() => onOpenBorrow(agent)}
-          className="flex-1 py-1.5 px-3 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white text-xs font-medium border border-white/[0.06] transition flex items-center justify-center gap-1.5"
+          disabled={sharedAvailableCredit <= 0}
+          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition flex items-center justify-center gap-1.5 ${
+            sharedAvailableCredit > 0
+              ? "bg-zinc-900 hover:bg-zinc-800 text-zinc-200 hover:text-white border-white/[0.06]"
+              : "opacity-30 cursor-not-allowed bg-transparent text-zinc-600 border-white/[0.04]"
+          }`}
         >
           <ArrowDownLeft className="w-3 h-3 text-zinc-400" />
           <span>Draw</span>

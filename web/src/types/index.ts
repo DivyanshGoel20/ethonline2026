@@ -47,10 +47,13 @@ export interface Loan {
   agentName: string;
   humanOwner: string;
   amount: number;
+  originationFee?: number;
+  accruedInterest?: number;
   outstandingAmount: number;
   totalRepaid: number;
   status: "ACTIVE" | "SETTLED" | "DEFAULTED";
   borrowedAt: number;
+  dueAt?: number;
   settledAt?: number;
   borrowTxHash: string;
   repayTxHashes: string[];
@@ -88,6 +91,7 @@ export interface RepayRequest {
 export interface RepayResponse {
   success: boolean;
   txHash?: string;
+  transferTxHash?: string;
   amount: number;
   remainingDebt: number;
   refundExcess?: number;
@@ -95,6 +99,11 @@ export interface RepayResponse {
   beneficiaryAgentAddress?: string;
   facilityTotalDebt?: number;
   settledLoans?: string[];
+  interestPaid?: number;
+  principalPaid?: number;
+  upgradedTier?: boolean;
+  currentTierName?: string;
+  newCreditLimit?: number;
   error?: string;
 }
 

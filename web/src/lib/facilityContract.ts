@@ -10,11 +10,12 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { FLOAT_CREDIT_FACILITY_ADDRESS, ARC_TESTNET_CHAIN_ID } from "./arc";
+import { getAgentPrivateKey } from "./agentKeys";
 
 export const arcTestnetChain = defineChain({
   id: ARC_TESTNET_CHAIN_ID,
   name: "Arc Testnet",
-  nativeCurrency: { name: "Arc ETH", symbol: "ETH", decimals: 18 },
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
   rpcUrls: {
     default: {
       http: [process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network"],
@@ -36,6 +37,16 @@ export const FLOAT_CREDIT_FACILITY_ABI = [
       { name: "humanOwner", type: "address" },
       { name: "humanRoot", type: "bytes32" },
       { name: "initialCreditLimit", type: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "setCreditLimit",
+    inputs: [
+      { name: "profileId", type: "bytes32" },
+      { name: "newLimit", type: "uint256" },
     ],
     outputs: [],
     stateMutability: "nonpayable",
@@ -419,14 +430,54 @@ export async function executeOnChainDrawdown(params: {
 }
 
 /**
- * Submits a real on-chain recordRepayment transaction on Arc Testnet to FloatCreditFacility.
+ * Submits a real on-chain repayment on Arc Testnet.
+ * If the paying agent is an autonomous agent with a private key, this function
+ * executes an actual on-chain native USDC transfer from the agent wallet to the Float facility,
+ * and then records the repayment on the FloatCreditFacility contract.
  */
 export async function executeOnChainRepayment(params: {
   humanOwner: string;
   payerAddress: string;
   agentAddress: string;
   amountUsdc: number;
-}): Promise<{ txHash: `0x${string}`; blockNumber: number }> {
+}): Promise<{ txHash: `0x${string}`; transferTxHash?: string; blockNumber: number }> {
+  // 1. If payer is an autonomous agent with a stored private key, transfer real USDC on Arc Testnet
+  let transferTxHash: string | undefined = undefined;
+  const agentKey = getAgentPrivateKey(params.payerAddress);
+
+  if (agentKey) {
+    try {
+      const agentAccount = privateKeyToAccount(agentKey);
+      const publicClient = getPublicClient();
+      const agentWalletClient = createWalletClient({
+        account: agentAccount,
+        chain: arcTestnetChain,
+        transport: getArcTransport(),
+      });
+
+      // Facility recipient (funding operator wallet)
+      const facilityRecipient = (process.env.HUMAN_OWNER ||
+        "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3") as `0x${string}`;
+
+      console.log(`[Repayment] Executing real on-chain transfer of ${params.amountUsdc} USDC from agent ${agentAccount.address} to facility ${facilityRecipient} on Arc Testnet...`);
+
+      // On Arc Testnet (5042002), native currency is USDC (18 decimals)
+      const transferHash = await agentWalletClient.sendTransaction({
+        to: facilityRecipient,
+        value: parseUnits(params.amountUsdc.toFixed(6), 18),
+      });
+
+      console.log(`[Repayment] Token transfer submitted on Arc Testnet: ${transferHash}`);
+      await publicClient.waitForTransactionReceipt({ hash: transferHash });
+      console.log(`[Repayment] Token transfer confirmed on Arc Testnet: ${transferHash}`);
+      transferTxHash = transferHash;
+    } catch (transferErr: any) {
+      console.warn(`[Repayment] Autonomous wallet transfer notice:`, transferErr.message || transferErr);
+      throw new Error(`Failed to transfer USDC from agent wallet on Arc Testnet: ${transferErr.shortMessage || transferErr.message}`);
+    }
+  }
+
+  // 2. Submit contract recordRepayment on Arc Testnet
   const pk = (process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY) as `0x${string}`;
   if (!pk) throw new Error("Missing PRIVATE_KEY for on-chain Arc Testnet transaction");
 
@@ -440,6 +491,24 @@ export async function executeOnChainRepayment(params: {
 
   const profileId = computeProfileId(params.humanOwner);
   const amountUnits = parseUnits(params.amountUsdc.toFixed(6), 6);
+
+  const profile = (await publicClient
+    .readContract({
+      address: FLOAT_CREDIT_FACILITY_ADDRESS,
+      abi: FLOAT_CREDIT_FACILITY_ABI,
+      functionName: "getProfile",
+      args: [profileId],
+    })
+    .catch(() => null)) as any;
+
+  if (profile && Number(profile.outstandingDebt) === 0) {
+    console.log(`[FacilityContract] On-chain profile ${profileId} has already settled all debt to 0.`);
+    return {
+      txHash: (transferTxHash as `0x${string}`) || "0x0000000000000000000000000000000000000000000000000000000000000000",
+      transferTxHash,
+      blockNumber: 0,
+    };
+  }
 
   const txHash = await walletClient.writeContract({
     address: FLOAT_CREDIT_FACILITY_ADDRESS,
@@ -456,9 +525,48 @@ export async function executeOnChainRepayment(params: {
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 
   return {
-    txHash,
+    txHash: (transferTxHash as `0x${string}`) || txHash,
+    transferTxHash,
     blockNumber: Number(receipt.blockNumber),
   };
+}
+
+/**
+ * Updates a credit profile limit on-chain on Arc Testnet upon tier graduation.
+ */
+export async function updateOnChainCreditLimit(
+  humanOwner: string,
+  newLimitUsdc: number
+): Promise<string | null> {
+  const pk = (process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY) as `0x${string}`;
+  if (!pk) return null;
+
+  try {
+    const account = privateKeyToAccount(pk);
+    const publicClient = getPublicClient();
+    const walletClient = createWalletClient({
+      account,
+      chain: arcTestnetChain,
+      transport: getArcTransport(),
+    });
+
+    const profileId = computeProfileId(humanOwner);
+    const limitUnits = parseUnits(newLimitUsdc.toString(), 6);
+
+    const hash = await walletClient.writeContract({
+      address: FLOAT_CREDIT_FACILITY_ADDRESS,
+      abi: FLOAT_CREDIT_FACILITY_ABI,
+      functionName: "setCreditLimit",
+      args: [profileId, limitUnits],
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash });
+    console.log(`[TierUpgrade] On-chain credit limit upgraded to $${newLimitUsdc} in tx ${hash}`);
+    return hash;
+  } catch (err: any) {
+    console.warn("[TierUpgrade] On-chain notice:", err.message || err);
+    return null;
+  }
 }
 
 /**

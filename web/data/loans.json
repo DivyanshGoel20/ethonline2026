@@ -1,17 +1,187 @@
 [
   {
+    "loanId": "loan_1789208074244_mbzms",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 0.01,
+    "originationFee": 0.0001,
+    "accruedInterest": 0,
+    "outstandingAmount": 0.0101,
+    "totalRepaid": 0,
+    "status": "ACTIVE",
+    "borrowedAt": 1789208074244,
+    "dueAt": 1789812874244,
+    "borrowTxHash": "0xabc6f5953152e7a282b7afadf49f7d9d715419f28a32b59c1ea051f16a882a41",
+    "repayTxHashes": [],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+  },
+  {
+    "loanId": "loan_1789207035577_31kxe",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 4.99,
+    "originationFee": 0.0499,
+    "accruedInterest": 0,
+    "outstandingAmount": 1.5099,
+    "totalRepaid": 3.53,
+    "status": "ACTIVE",
+    "borrowedAt": 1789207035577,
+    "dueAt": 1789811835577,
+    "borrowTxHash": "0x970787e6756234482881d066bcb7efee2db667da5de362c38c4972e4340c5903",
+    "repayTxHashes": [
+      "0xefd63c9e712c4642e8273ce19c5b3c5c58771c9ccf00502bad4221d24ae2acc3"
+    ],
+    "memo": "Credit Facility Draw on Arc Testnet"
+  },
+  {
+    "loanId": "loan_1789206293860_aocns",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 5,
+    "originationFee": 0.05,
+    "accruedInterest": 0,
+    "outstandingAmount": 0,
+    "totalRepaid": 5.05,
+    "status": "SETTLED",
+    "borrowedAt": 1789206293860,
+    "dueAt": 1789811093860,
+    "borrowTxHash": "0x488c6680ffc0c82cff97fb7daba2f7ed6860372311f384cfe45aeb6679cb5fa4",
+    "repayTxHashes": [
+      "0x6646961ceff662d0e07f35550f2a99f5d809f6d2224ccbfcd54521da5b4b3fe6",
+      "0x0cc318bf534f30c50451898fb542662ebf139b942e4957ebe32dee68d614f492"
+    ],
+    "memo": "Automated Verification Test Draw",
+    "settledAt": 1789206339910
+  },
+  {
+    "loanId": "loan_1789206270902_lgqg1",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 5,
+    "originationFee": 0.05,
+    "accruedInterest": 0,
+    "outstandingAmount": 0,
+    "totalRepaid": 5.05,
+    "status": "SETTLED",
+    "borrowedAt": 1789206270902,
+    "dueAt": 1789811070902,
+    "borrowTxHash": "0x19d9f34157d04da8a3b89d45c712d003f8f76f603fe96f408b38593f62b7430e",
+    "repayTxHashes": [
+      "0x1e1ad7b563b55e5ff3a8db8817a0b4dde25a167dc7d3b24679a9e9ea24f80a0a",
+      "0x6646961ceff662d0e07f35550f2a99f5d809f6d2224ccbfcd54521da5b4b3fe6"
+    ],
+    "memo": "Automated Verification Test Draw",
+    "settledAt": 1789206301598
+  },
+  {
+    "loanId": "loan_1789206249843_yn6on",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 5,
+    "originationFee": 0.05,
+    "accruedInterest": 0,
+    "outstandingAmount": 0,
+    "totalRepaid": 5.1005,
+    "status": "SETTLED",
+    "borrowedAt": 1789206249843,
+    "dueAt": 1789811049843,
+    "borrowTxHash": "0x304d7a44e95fbeedb9f7f7863b8451b16cba537bbffb6a21087ad658a18f3f93",
+    "repayTxHashes": [
+      "0xcc1f171c6a24f6cbaf324109400adfa0d87a5bcafd819a56e3b01b66bb00e9a9",
+      "0x1e1ad7b563b55e5ff3a8db8817a0b4dde25a167dc7d3b24679a9e9ea24f80a0a"
+    ],
+    "memo": "Automated Verification Test Draw",
+    "settledAt": 1789206274070
+  },
+  {
+    "loanId": "loan_1789205181022_745wn",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 9.97,
+    "outstandingAmount": 0,
+    "totalRepaid": 9.97,
+    "status": "SETTLED",
+    "borrowedAt": 1789205181022,
+    "borrowTxHash": "0x8319b1ecd995986fd5abea0ce812c7a339b7336063145b55c7a9ef8b639c0d1a",
+    "repayTxHashes": [
+      "0x08eb8c9d8852bb93ea28602ea7be218c645c3a96e5218c3270d4c521f817a51a"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1789205222744
+  },
+  {
+    "loanId": "loan_1789205170115_pzvcd",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 9.97,
+    "outstandingAmount": 0,
+    "totalRepaid": 9.97,
+    "status": "SETTLED",
+    "borrowedAt": 1789205170115,
+    "borrowTxHash": "0x9fb317847455efb8c61eb47e23a844ae1707cabc638b1f634055c32db44f44ea",
+    "repayTxHashes": [
+      "0xd14fb4c579848287fca4da683d72d915735087fb662f80b2d94052b647718cd3"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1789205173542
+  },
+  {
+    "loanId": "loan_1789205158566_soaj8",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 3.98,
+    "outstandingAmount": 0,
+    "totalRepaid": 3.98,
+    "status": "SETTLED",
+    "borrowedAt": 1789205158566,
+    "borrowTxHash": "0x2d5183db7a8a81e7812f457fcb22b34f32b08118e2634732661508de3353adc7",
+    "repayTxHashes": [
+      "0x37ec33b9ec481f74ad157fe8b1d6935c21a0acb9c38f40612940296d1c33acea"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1789205163232
+  },
+  {
+    "loanId": "loan_1789204883623_b64zs",
+    "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
+    "agentName": "Arc Test Wallet",
+    "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
+    "amount": 4.98,
+    "outstandingAmount": 0,
+    "totalRepaid": 4.98,
+    "status": "SETTLED",
+    "borrowedAt": 1789204883623,
+    "borrowTxHash": "0x2ad6ce52f0c541ed91cb1139af46b35c9801d3eb9c602816ee637ce48418b38a",
+    "repayTxHashes": [
+      "0x37ec33b9ec481f74ad157fe8b1d6935c21a0acb9c38f40612940296d1c33acea"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1789205163232
+  },
+  {
     "loanId": "loan_1789197344132_pslv0",
     "agentAddress": "0xa5509d881a4632591117bcb7145ec9e80c015dc3",
     "agentName": "Arc Test Wallet",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "amount": 0.01,
-    "outstandingAmount": 0.01,
-    "totalRepaid": 0,
-    "status": "ACTIVE",
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
     "borrowedAt": 1789197344132,
     "borrowTxHash": "0x9bb8ab4ee36da072f9b7f2a16236e9b5d9ddb0f90313a7fa954ab7965ec22af5",
-    "repayTxHashes": [],
-    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+    "repayTxHashes": [
+      "0x37ec33b9ec481f74ad157fe8b1d6935c21a0acb9c38f40612940296d1c33acea"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789205163232
   },
   {
     "loanId": "loan_1789197063103_e8z4z",
@@ -19,13 +189,17 @@
     "agentName": "Arc Test Wallet",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "amount": 0.01,
-    "outstandingAmount": 0.01,
-    "totalRepaid": 0,
-    "status": "ACTIVE",
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
     "borrowedAt": 1789197063103,
     "borrowTxHash": "0xc721da2830325352b1cbd3261bc0873562d8ecd783ac96fa07efac3d9db92802",
-    "repayTxHashes": [],
-    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+    "repayTxHashes": [
+      "0xb7e5c001eb2ee2f8103442bf812f941b51ff70c0913cf2cdd07b05b633ab897b",
+      "0x37ec33b9ec481f74ad157fe8b1d6935c21a0acb9c38f40612940296d1c33acea"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789205163232
   },
   {
     "loanId": "loan_1789196792621_uo734",
@@ -61,13 +235,16 @@
     "agentName": "Arc Test Wallet",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "amount": 0.01,
-    "outstandingAmount": 0.01,
-    "totalRepaid": 0,
-    "status": "ACTIVE",
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
     "borrowedAt": 1789196783075,
     "borrowTxHash": "0x0443e202adfc8ae23f181c64550352028a2a2c712ee85ded16978d32dbb692c8",
-    "repayTxHashes": [],
-    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+    "repayTxHashes": [
+      "0xb7e5c001eb2ee2f8103442bf812f941b51ff70c0913cf2cdd07b05b633ab897b"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789204691107
   },
   {
     "loanId": "loan_1789196483213_880hy",
@@ -75,13 +252,16 @@
     "agentName": "Arc Test Wallet",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "amount": 5,
-    "outstandingAmount": 5,
-    "totalRepaid": 0,
-    "status": "ACTIVE",
+    "outstandingAmount": 0,
+    "totalRepaid": 5,
+    "status": "SETTLED",
     "borrowedAt": 1789196483213,
     "borrowTxHash": "0x8ddea24360eeeb1953938cbc9e27bd68d510495add1a6d26fcd4a6beba81ee1f",
-    "repayTxHashes": [],
-    "memo": "Autonomous Credit Draw on Arc Testnet"
+    "repayTxHashes": [
+      "0xb7e5c001eb2ee2f8103442bf812f941b51ff70c0913cf2cdd07b05b633ab897b"
+    ],
+    "memo": "Autonomous Credit Draw on Arc Testnet",
+    "settledAt": 1789204691107
   },
   {
     "loanId": "loan_1789194975380_gncs5",
@@ -89,13 +269,16 @@
     "agentName": "Arc Test Wallet",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "amount": 0.01,
-    "outstandingAmount": 0.01,
-    "totalRepaid": 0,
-    "status": "ACTIVE",
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
     "borrowedAt": 1789194975380,
     "borrowTxHash": "0xb2357e6ed729b9b51bb3bd0bbd826acb6d853c47a9e8540c8ddcd868758f9b15",
-    "repayTxHashes": [],
-    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+    "repayTxHashes": [
+      "0xb7e5c001eb2ee2f8103442bf812f941b51ff70c0913cf2cdd07b05b633ab897b"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789204691107
   },
   {
     "loanId": "loan_1789194405471_0ka3e",
@@ -103,13 +286,16 @@
     "agentName": "Arc Test Wallet",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "amount": 0.01,
-    "outstandingAmount": 0.01,
-    "totalRepaid": 0,
-    "status": "ACTIVE",
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
     "borrowedAt": 1789194405471,
     "borrowTxHash": "0x2022f7e5b945702646ec55cb50adbe0d01da650d0c5711e2076aa65a1f5e9ad3",
-    "repayTxHashes": [],
-    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+    "repayTxHashes": [
+      "0xb7e5c001eb2ee2f8103442bf812f941b51ff70c0913cf2cdd07b05b633ab897b"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789204691107
   },
   {
     "loanId": "loan_1789193893020_2khgi",
@@ -117,13 +303,16 @@
     "agentName": "Autonomous Test Agent",
     "humanOwner": "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3",
     "amount": 0.01,
-    "outstandingAmount": 0.01,
-    "totalRepaid": 0,
-    "status": "ACTIVE",
+    "outstandingAmount": 0,
+    "totalRepaid": 0.01,
+    "status": "SETTLED",
     "borrowedAt": 1789193893020,
     "borrowTxHash": "0xc2ec093ef046bb61ea28dfddf20c000d0c08fae5c77bbbf1c1edddee93a610a4",
-    "repayTxHashes": [],
-    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
+    "repayTxHashes": [
+      "0xb7e5c001eb2ee2f8103442bf812f941b51ff70c0913cf2cdd07b05b633ab897b"
+    ],
+    "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data",
+    "settledAt": 1789204691107
   },
   {
     "loanId": "loan_1789189211824_pm2ts",
@@ -173,12 +362,14 @@
     "agentName": "Funded Agent",
     "humanOwner": "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077",
     "amount": 0.01,
-    "outstandingAmount": 0.01,
-    "totalRepaid": 0,
+    "outstandingAmount": 0.009999999999999556,
+    "totalRepaid": 4.440892098500626e-16,
     "status": "ACTIVE",
     "borrowedAt": 1789112720935,
     "borrowTxHash": "0xarc_draw_062f8e3c99cf9dcd18ca0cbcf1cacdb741135ebf5746b1ec85",
-    "repayTxHashes": [],
+    "repayTxHashes": [
+      "0x37ec33b9ec481f74ad157fe8b1d6935c21a0acb9c38f40612940296d1c33acea"
+    ],
     "memo": "Float Overdraft x402 Drawdown for http://localhost:3000/premium-data"
   },
   {

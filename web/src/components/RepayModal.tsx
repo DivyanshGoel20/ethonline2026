@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Agent } from "@/types";
-import { X, ArrowUpRight, AlertCircle } from "lucide-react";
+import { X, ArrowUpRight, AlertCircle, Zap, ShieldCheck, ExternalLink } from "lucide-react";
+import { parseUnits } from "viem";
 
 interface RepayModalProps {
   agent: Agent | null;
   isOpen: boolean;
   onClose: () => void;
-  onConfirmRepay: (agentAddress: string, amount: number) => Promise<void>;
+  onConfirmRepay: (agentAddress: string, amount: number, txHash?: string) => Promise<void>;
 }
 
 export const RepayModal: React.FC<RepayModalProps> = ({
@@ -20,19 +21,31 @@ export const RepayModal: React.FC<RepayModalProps> = ({
   const [amount, setAmount] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useBrowserWallet, setUseBrowserWallet] = useState(false);
 
   useEffect(() => {
     if (isOpen && agent) {
       setAmount(agent.outstandingDebt.toFixed(2));
       setError(null);
+      // Auto-detect browser wallet if not autonomous
+      if (typeof window !== "undefined" && (window as any).ethereum && !agent.isAutonomous) {
+        setUseBrowserWallet(true);
+      } else {
+        setUseBrowserWallet(false);
+      }
     }
   }, [isOpen, agent]);
 
   if (!isOpen || !agent) return null;
 
   const parsedAmount = parseFloat(amount) || 0;
-  const isOverDebt = parsedAmount > agent.outstandingDebt;
-  const remainingDebt = Math.max(0, agent.outstandingDebt - parsedAmount);
+  // Precision-safe comparison: allow +0.005 epsilon tolerance for floating-point math
+  const isOverDebt = parsedAmount > agent.outstandingDebt + 0.005;
+  const remainingDebt = Math.max(0, Math.round((agent.outstandingDebt - parsedAmount) * 100) / 100);
+
+  // Approximate principal vs origination fee breakdown
+  const estOriginationFee = Math.round((parsedAmount * (0.01 / 1.01)) * 1000) / 1000;
+  const estPrincipal = Math.max(0, Math.round((parsedAmount - estOriginationFee) * 1000) / 1000);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,11 +59,40 @@ export const RepayModal: React.FC<RepayModalProps> = ({
     }
 
     setIsSubmitting(true);
+    setError(null);
+
     try {
-      await onConfirmRepay(agent.address, parsedAmount);
+      let clientTxHash: string | undefined = undefined;
+
+      // If user chooses browser wallet payment on Arc Testnet
+      if (useBrowserWallet && typeof window !== "undefined" && (window as any).ethereum) {
+        const ethereum = (window as any).ethereum;
+        const accounts = await ethereum.request({ method: "eth_requestAccounts" });
+        const fromAccount = accounts[0];
+
+        // Facility Operator Treasury
+        const facilityTreasury = "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3";
+        const valueHex = "0x" + parseUnits(parsedAmount.toFixed(6), 18).toString(16);
+
+        clientTxHash = await ethereum.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: fromAccount,
+              to: facilityTreasury,
+              value: valueHex,
+            },
+          ],
+        });
+      }
+
+      // Safe clamp: ensure we never submit more than the stored outstandingDebt
+      const effectiveAmount = Math.min(parsedAmount, agent.outstandingDebt);
+      await onConfirmRepay(agent.address, effectiveAmount, clientTxHash);
       onClose();
     } catch (err: any) {
-      setError(err.message || "Failed to settle repayment");
+      console.error("[RepayModal] Submission error:", err);
+      setError(err.shortMessage || err.message || "Failed to settle repayment");
     } finally {
       setIsSubmitting(false);
     }
@@ -121,10 +163,43 @@ export const RepayModal: React.FC<RepayModalProps> = ({
             </div>
           </div>
 
+          {/* Real On-Chain Settlement Mode */}
+          <div className="p-3 rounded-lg bg-zinc-950/80 border border-white/[0.05] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 text-zinc-300 font-medium">
+                {agent.isAutonomous ? (
+                  <>
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Autonomous Self-Signing</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Real Arc Settlement</span>
+                  </>
+                )}
+              </div>
+              <span className="text-[10px] font-mono text-zinc-500">Arc Testnet (5042002)</span>
+            </div>
+            <p className="text-[11px] text-zinc-400 leading-relaxed">
+              {agent.isAutonomous
+                ? "This agent signs with its own on-chain wallet. Real native USDC will be deducted directly from its address on Arc Testnet."
+                : "Real USDC tokens are transferred on Arc Testnet to settle your credit facility and restore available headroom."}
+            </p>
+          </div>
+
           {/* Impact preview */}
           {parsedAmount > 0 && (
             <div className="p-3 rounded-lg bg-zinc-950/70 border border-white/[0.04] space-y-1.5 text-xs font-mono">
               <div className="flex justify-between text-zinc-400">
+                <span>Principal Settled</span>
+                <span className="text-zinc-200">${estPrincipal.toFixed(2)} USDC</span>
+              </div>
+              <div className="flex justify-between text-zinc-400">
+                <span>Interest & Origination Fee</span>
+                <span className="text-amber-400">${estOriginationFee.toFixed(2)} USDC</span>
+              </div>
+              <div className="border-t border-white/[0.05] pt-1 flex justify-between text-zinc-400">
                 <span>Remaining Debt</span>
                 <span className="text-zinc-200">${remainingDebt.toFixed(2)} USDC</span>
               </div>

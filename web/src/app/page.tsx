@@ -15,6 +15,7 @@ import { ApiModal } from "@/components/ApiModal";
 import { WorldAuthGate } from "@/components/WorldAuthGate";
 import { SmartContractTelemetry } from "@/components/SmartContractTelemetry";
 import { LiveTransactionFeed } from "@/components/LiveTransactionFeed";
+import { ReputationTierCard } from "@/components/ReputationTierCard";
 import { Agent, CreditStats as CreditStatsType } from "@/types";
 import { Search, Plus, Bot } from "lucide-react";
 
@@ -141,11 +142,11 @@ export default function Dashboard() {
   };
 
   // Handle Repay
-  const handleConfirmRepay = async (agentAddress: string, amount: number) => {
+  const handleConfirmRepay = async (agentAddress: string, amount: number, txHash?: string) => {
     const res = await fetch("/api/repay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agentAddress, amount }),
+      body: JSON.stringify({ agentAddress, amount, txHash }),
     });
     const data = await res.json();
 
@@ -265,6 +266,14 @@ export default function Dashboard() {
           <CreditStats stats={stats} />
         </section>
 
+        {/* Operator Reputation & 4-Tier Progression Card */}
+        <section>
+          <ReputationTierCard
+            humanOwner={nullifierHash || ""}
+            refreshTrigger={refreshTrigger}
+          />
+        </section>
+
         {/* Section: My Agents Header */}
         <section className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -339,6 +348,11 @@ export default function Dashboard() {
                 <AgentCard
                   key={agent.address}
                   agent={agent}
+                  facilityStats={{
+                    totalCreditLimit: stats.totalAvailableCredit + stats.totalOutstandingDebt,
+                    totalAvailableCredit: stats.totalAvailableCredit,
+                    totalOutstandingDebt: stats.totalOutstandingDebt,
+                  }}
                   onOpenBorrow={(a) => setSelectedBorrowAgent(a)}
                   onOpenRepay={(a) => setSelectedRepayAgent(a)}
                   onOpenPay={(a) => setSelectedPayAgent(a)}

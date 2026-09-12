@@ -2,8 +2,11 @@ import { FloatSignerTS } from "../web/src/lib/floatSigner";
 
 async function testAgentOverdraft() {
   const agentAddress = "0x36e271970fa654ef640ee150e3bd734e946c077d";
+  const fundingPrivateKey = (process.env.FLOAT_FUNDING_PRIVATE_KEY || process.env.PRIVATE_KEY) as `0x${string}`;
+  if (!fundingPrivateKey) throw new Error("Missing FLOAT_FUNDING_PRIVATE_KEY or PRIVATE_KEY in environment");
+
   const signer = new FloatSignerTS({
-    fundingPrivateKey: "0x0000000000000000000000000000000000000000000000000000000000000001",
+    fundingPrivateKey,
   });
 
   console.log("Agent:", agentAddress);

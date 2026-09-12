@@ -60,23 +60,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Human Borrower Credit Limits & Outstanding Headroom
+    // 3. Human Borrower Credit Limits & Outstanding Headroom (Strictly Shared Pool)
     const facility = getHumanFacilityStats(agent.humanOwner);
-    const agentAvailable = Math.max(0, agent.creditLimit - agent.outstandingDebt);
     const facilityAvailable = facility.totalAvailableCredit;
-    const effectiveAvailable = Math.min(agentAvailable, facilityAvailable);
 
-    if (borrowAmount > effectiveAvailable) {
+    if (borrowAmount > facilityAvailable + 0.0001) {
       return NextResponse.json(
         {
           success: false,
-          error: `Draw exceeds credit limit. Available: $${effectiveAvailable.toFixed(
+          error: `Draw exceeds shared facility credit limit. Combined available across all your agents: $${facilityAvailable.toFixed(
             2
-          )} USDC (Agent limit: $${agentAvailable.toFixed(
-            2
-          )}, Human facility headroom: $${facilityAvailable.toFixed(
-            2
-          )}). Requested: $${borrowAmount.toFixed(2)} USDC.`,
+          )} USDC. Requested: $${borrowAmount.toFixed(2)} USDC.`,
         },
         { status: 403 }
       );
@@ -91,20 +85,22 @@ export async function POST(req: NextRequest) {
     });
     const arcTxHash = onChainResult.txHash;
 
-    // 5. Create atomic Loan record
+    // 5. Create atomic Loan record (1.0% origination fee + 7-day maturity)
     const loan = createLoan({
       agentAddress: agent.address,
       agentName: agent.name,
       humanOwner: agent.humanOwner,
       amount: borrowAmount,
       txHash: arcTxHash,
-      memo: memo || "Autonomous Credit Draw on Arc Testnet",
+      memo: memo || "Credit Facility Draw on Arc Testnet",
     });
 
-    // 6. Update Agent Financials
-    const newDebt = agent.outstandingDebt + borrowAmount;
-    const newTotalBorrowed = agent.totalBorrowed + borrowAmount;
-    const newBalance = agent.currentBalance + borrowAmount;
+    // 6. Update Agent Financials (Principal + 1.0% Origination Fee)
+    const originationFee = loan.originationFee || Math.round(borrowAmount * 0.01 * 10000) / 10000;
+    const initialDebtAdded = Math.round((borrowAmount + originationFee) * 10000) / 10000;
+    const newDebt = Math.round((agent.outstandingDebt + initialDebtAdded) * 10000) / 10000;
+    const newTotalBorrowed = Math.round((agent.totalBorrowed + borrowAmount) * 10000) / 10000;
+    const newBalance = Math.round((agent.currentBalance + borrowAmount) * 10000) / 10000;
 
     updateAgentInStore(agent.address, {
       outstandingDebt: newDebt,
@@ -131,13 +127,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ...response,
       agentName: agent.name,
-      agentAvailableCredit: Math.max(0, agent.creditLimit - newDebt),
+      originationFee,
+      initialTotalDue: initialDebtAdded,
+      agentAvailableCredit: updatedFacility.totalAvailableCredit,
       facilityAvailableCredit: updatedFacility.totalAvailableCredit,
       network: `${ARC_TESTNET_NAME} (${ARC_TESTNET_CHAIN_ID})`,
       facilityContractAddress: FLOAT_CREDIT_FACILITY_ADDRESS,
       message: `Successfully disbursed $${borrowAmount.toFixed(
         2
-      )} USDC on Arc Testnet.`,
+      )} USDC on Arc Testnet (1.0% fee: $${originationFee.toFixed(2)} USDC, 7-day maturity).`,
     });
   } catch (error: any) {
     console.error("[POST /api/borrow] Error:", error);

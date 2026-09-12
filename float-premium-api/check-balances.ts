@@ -17,8 +17,10 @@ async function check(name: string, pk: string) {
 }
 
 async function main() {
-  await check("Key 1", "0x0000000000000000000000000000000000000000000000000000000000000001");
-  await check("Key 2", "0x0000000000000000000000000000000000000000000000000000000000000002");
+  const pk1 = process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY;
+  const pk2 = process.env.AGENT_PRIVATE_KEY;
+  if (pk1) await check("Operator Wallet", pk1);
+  if (pk2) await check("Agent Wallet", pk2);
 }
 
 main();

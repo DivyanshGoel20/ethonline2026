@@ -27,7 +27,7 @@ async function main() {
   });
 
   const profileId = keccak256(encodePacked(["address"], [HUMAN_OWNER]));
-  const humanRoot = keccak256(encodePacked(["string"], ["0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077"]));
+  const humanRoot = keccak256(encodePacked(["string"], [process.env.HUMAN_ROOT || "0x1a4d7ff9847b6b4d616afa1e16ada2c29cf59e4357ce759a87320b539a1b8077"]));
   const creditLimit = parseUnits("500", 6); // $500.00 USDC
 
   console.log("\n1. Creating Credit Profile on Arc Testnet...");

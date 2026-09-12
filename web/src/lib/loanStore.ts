@@ -1,23 +1,36 @@
 import fs from "fs";
 import path from "path";
 import { Loan } from "@/types";
+import { calculateLoanAccrual } from "./reputationEngine";
+import { recordRepaymentInReputation } from "./reputationStore";
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
-const LOANS_FILE = path.join(DATA_DIR, "loans.json");
+function getLoansFilePath(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "web", "data", "loans.json"),
+    path.resolve(process.cwd(), "data", "loans.json"),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return path.resolve(process.cwd(), "data", "loans.json");
+}
 
 function ensureDirectoryExists() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const filePath = getLoansFilePath();
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
 export function getAllLoans(): Loan[] {
   try {
     ensureDirectoryExists();
-    if (!fs.existsSync(LOANS_FILE)) {
+    const filePath = getLoansFilePath();
+    if (!fs.existsSync(filePath)) {
       return [];
     }
-    const content = fs.readFileSync(LOANS_FILE, "utf8");
+    const content = fs.readFileSync(filePath, "utf8");
     return JSON.parse(content);
   } catch (error) {
     console.error("[LoanStore] Error reading loans file:", error);
@@ -28,7 +41,22 @@ export function getAllLoans(): Loan[] {
 export function saveAllLoans(loans: Loan[]) {
   try {
     ensureDirectoryExists();
-    fs.writeFileSync(LOANS_FILE, JSON.stringify(loans, null, 2), "utf8");
+    const primary = getLoansFilePath();
+    fs.writeFileSync(primary, JSON.stringify(loans, null, 2), "utf8");
+
+    // Also mirror to secondary path if in web workspace
+    const altPath = primary.includes("web/data")
+      ? primary.replace("web/data", "data")
+      : primary.replace("/data", "/web/data");
+    if (altPath !== primary) {
+      try {
+        const altDir = path.dirname(altPath);
+        if (!fs.existsSync(altDir)) fs.mkdirSync(altDir, { recursive: true });
+        fs.writeFileSync(altPath, JSON.stringify(loans, null, 2), "utf8");
+      } catch {
+        // ignore mirror error
+      }
+    }
   } catch (error) {
     console.error("[LoanStore] Error writing loans file:", error);
   }
@@ -54,10 +82,13 @@ export function getActiveLoansByHuman(humanOwner: string): Loan[] {
     (l) =>
       l.humanOwner.toLowerCase() === humanOwner.toLowerCase() &&
       l.status === "ACTIVE" &&
-      l.outstandingAmount > 0
+      (l.outstandingAmount || 0) > 0.0001
   );
 }
 
+/**
+ * Creates a new loan with 1.0% origination fee and strict 7-day maturity cap.
+ */
 export function createLoan(params: {
   agentAddress: string;
   agentName: string;
@@ -67,17 +98,24 @@ export function createLoan(params: {
   memo?: string;
 }): Loan {
   const all = getAllLoans();
+  const now = Date.now();
+  const originationFee = Math.round(params.amount * 0.01 * 10000) / 10000;
+  const initialTotalDue = Math.round((params.amount + originationFee) * 10000) / 10000;
+  const dueAt = now + 7 * 24 * 60 * 60 * 1000; // Strictly 7 days
 
   const newLoan: Loan = {
-    loanId: `loan_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    agentAddress: params.agentAddress.toLowerCase(),
+    loanId: `loan_${now}_${Math.random().toString(36).substring(2, 7)}`,
+    agentAddress: params.agentAddress.toLowerCase() as `0x${string}`,
     agentName: params.agentName,
     humanOwner: params.humanOwner,
     amount: params.amount,
-    outstandingAmount: params.amount,
+    originationFee,
+    accruedInterest: 0,
+    outstandingAmount: initialTotalDue,
     totalRepaid: 0,
     status: "ACTIVE",
-    borrowedAt: Date.now(),
+    borrowedAt: now,
+    dueAt,
     borrowTxHash: params.txHash,
     repayTxHashes: [],
     memo: params.memo || "Float Credit Draw on Arc Testnet",
@@ -90,8 +128,9 @@ export function createLoan(params: {
 
 /**
  * Flexible repayment engine:
- * In Float, the Human is the actual borrower.
- * Therefore, any authorized agent can pay any loan or any sibling agent's debt under the same human owner.
+ * Follows FIFO (First-In, First-Out) Tranche settlement:
+ * Oldest loan is settled first. Settling the oldest loan immediately rolls forward
+ * the facility's overall maturity deadline to the next earliest loan tranche.
  */
 export function processRepayment(params: {
   payingAgentAddress: string;
@@ -105,6 +144,8 @@ export function processRepayment(params: {
   beneficiaryAgentAddress: string;
   settledLoans: string[];
   remainingExcessAmount: number;
+  interestPaid: number;
+  principalPaid: number;
 } {
   const all = getAllLoans();
   let remainingToApply = params.amount;
@@ -114,92 +155,147 @@ export function processRepayment(params: {
     ? params.targetAgentAddress.toLowerCase()
     : payingAddress;
 
+  let totalInterestPaid = 0;
+  let totalPrincipalPaid = 0;
+  let totalServicedDurationDays = 0;
+
   // 1. If a specific loan ID was targeted
   if (params.targetLoanId) {
     const loan = all.find((l) => l.loanId === params.targetLoanId);
-    if (loan && loan.status === "ACTIVE" && loan.outstandingAmount > 0) {
-      const payment = Math.min(remainingToApply, loan.outstandingAmount);
-      loan.outstandingAmount -= payment;
-      loan.totalRepaid += payment;
-      loan.repayTxHashes.push(params.txHash);
-      remainingToApply -= payment;
+    if (loan && loan.status === "ACTIVE" && (loan.outstandingAmount || 0) > 0.0001) {
+      const accrual = calculateLoanAccrual(loan);
+      const totalDue = accrual.totalDue;
+      const payment = Math.min(remainingToApply, totalDue);
 
-      if (loan.outstandingAmount <= 0) {
+      const feePart = accrual.originationFee + accrual.accruedInterest;
+      const interestPayment = Math.min(payment, feePart);
+      const principalPayment = Math.max(0, payment - interestPayment);
+      totalInterestPaid += interestPayment;
+      totalPrincipalPaid += principalPayment;
+
+      const remainingDebt = Math.max(0, Math.round((totalDue - payment) * 10000) / 10000);
+      loan.outstandingAmount = remainingDebt <= 0.0001 ? 0 : remainingDebt;
+      loan.totalRepaid = Math.round((loan.totalRepaid + payment) * 10000) / 10000;
+      loan.repayTxHashes.push(params.txHash);
+      remainingToApply = Math.max(0, Math.round((remainingToApply - payment) * 10000) / 10000);
+
+      if (loan.outstandingAmount === 0) {
         loan.status = "SETTLED";
         loan.settledAt = Date.now();
         settledLoans.push(loan.loanId);
+        totalServicedDurationDays += accrual.daysOutstanding;
       }
 
       saveAllLoans(all);
+
+      recordRepaymentInReputation({
+        humanOwner: params.humanOwner,
+        interestPaid: totalInterestPaid,
+        loanDurationDays: totalServicedDurationDays,
+      }).catch((err) => console.warn("[LoanStore] Reputation sync warning:", err));
+
       return {
-        amountRepaid: params.amount - remainingToApply,
+        amountRepaid: Math.round((params.amount - remainingToApply) * 10000) / 10000,
         beneficiaryAgentAddress: loan.agentAddress,
         settledLoans,
         remainingExcessAmount: remainingToApply,
+        interestPaid: totalInterestPaid,
+        principalPaid: totalPrincipalPaid,
       };
     }
   }
 
-  // 2. Primary target: Repay active loans of the target agent (oldest first)
+  // 2. Primary target: Repay active loans of the target agent (FIFO: oldest first)
   const targetLoans = all
     .filter(
       (l) =>
         l.agentAddress.toLowerCase() === targetAddress &&
         l.status === "ACTIVE" &&
-        l.outstandingAmount > 0
+        (l.outstandingAmount || 0) > 0.0001
     )
-    .sort((a, b) => a.borrowedAt - b.borrowedAt);
+    .sort((a, b) => (a.borrowedAt || 0) - (b.borrowedAt || 0));
 
   for (const loan of targetLoans) {
-    if (remainingToApply <= 0) break;
-    const payment = Math.min(remainingToApply, loan.outstandingAmount);
-    loan.outstandingAmount -= payment;
-    loan.totalRepaid += payment;
-    loan.repayTxHashes.push(params.txHash);
-    remainingToApply -= payment;
+    if (remainingToApply <= 0.0001) break;
+    const accrual = calculateLoanAccrual(loan);
+    const totalDue = accrual.totalDue;
+    const payment = Math.min(remainingToApply, totalDue);
 
-    if (loan.outstandingAmount <= 0) {
+    const feePart = accrual.originationFee + accrual.accruedInterest;
+    const interestPayment = Math.min(payment, feePart);
+    const principalPayment = Math.max(0, payment - interestPayment);
+    totalInterestPaid += interestPayment;
+    totalPrincipalPaid += principalPayment;
+
+    const remainingDebt = Math.max(0, Math.round((totalDue - payment) * 10000) / 10000);
+    loan.outstandingAmount = remainingDebt <= 0.0001 ? 0 : remainingDebt;
+    loan.totalRepaid = Math.round((loan.totalRepaid + payment) * 10000) / 10000;
+    loan.repayTxHashes.push(params.txHash);
+    remainingToApply = Math.max(0, Math.round((remainingToApply - payment) * 10000) / 10000);
+
+    if (loan.outstandingAmount === 0) {
       loan.status = "SETTLED";
       loan.settledAt = Date.now();
       settledLoans.push(loan.loanId);
+      totalServicedDurationDays += accrual.daysOutstanding;
     }
   }
 
   // 3. Shared Human Borrower Feature:
-  // If excess payment remains, apply it to other active loans under the SAME human borrower!
-  if (remainingToApply > 0 && params.humanOwner) {
+  // If excess payment remains, apply it to other active loans under the SAME human borrower (FIFO)!
+  if (remainingToApply > 0.0001 && params.humanOwner) {
     const otherHumanLoans = all
       .filter(
         (l) =>
           l.humanOwner.toLowerCase() === params.humanOwner.toLowerCase() &&
           l.agentAddress.toLowerCase() !== targetAddress &&
           l.status === "ACTIVE" &&
-          l.outstandingAmount > 0
+          (l.outstandingAmount || 0) > 0.0001
       )
-      .sort((a, b) => a.borrowedAt - b.borrowedAt);
+      .sort((a, b) => (a.borrowedAt || 0) - (b.borrowedAt || 0));
 
     for (const loan of otherHumanLoans) {
-      if (remainingToApply <= 0) break;
-      const payment = Math.min(remainingToApply, loan.outstandingAmount);
-      loan.outstandingAmount -= payment;
-      loan.totalRepaid += payment;
-      loan.repayTxHashes.push(params.txHash);
-      remainingToApply -= payment;
+      if (remainingToApply <= 0.0001) break;
+      const accrual = calculateLoanAccrual(loan);
+      const totalDue = accrual.totalDue;
+      const payment = Math.min(remainingToApply, totalDue);
 
-      if (loan.outstandingAmount <= 0) {
+      const feePart = accrual.originationFee + accrual.accruedInterest;
+      const interestPayment = Math.min(payment, feePart);
+      const principalPayment = Math.max(0, payment - interestPayment);
+      totalInterestPaid += interestPayment;
+      totalPrincipalPaid += principalPayment;
+
+      const remainingDebt = Math.max(0, Math.round((totalDue - payment) * 10000) / 10000);
+      loan.outstandingAmount = remainingDebt <= 0.0001 ? 0 : remainingDebt;
+      loan.totalRepaid = Math.round((loan.totalRepaid + payment) * 10000) / 10000;
+      loan.repayTxHashes.push(params.txHash);
+      remainingToApply = Math.max(0, Math.round((remainingToApply - payment) * 10000) / 10000);
+
+      if (loan.outstandingAmount === 0) {
         loan.status = "SETTLED";
         loan.settledAt = Date.now();
         settledLoans.push(loan.loanId);
+        totalServicedDurationDays += accrual.daysOutstanding;
       }
     }
   }
 
   saveAllLoans(all);
 
+  // Synchronize reputation engine & check for tier upgrade
+  recordRepaymentInReputation({
+    humanOwner: params.humanOwner,
+    interestPaid: totalInterestPaid,
+    loanDurationDays: totalServicedDurationDays,
+  }).catch((err) => console.warn("[LoanStore] Reputation sync warning:", err));
+
   return {
-    amountRepaid: params.amount - remainingToApply,
+    amountRepaid: Math.round((params.amount - remainingToApply) * 10000) / 10000,
     beneficiaryAgentAddress: targetAddress,
     settledLoans,
     remainingExcessAmount: remainingToApply,
+    interestPaid: totalInterestPaid,
+    principalPaid: totalPrincipalPaid,
   };
 }

@@ -2,7 +2,7 @@ import { GatewayClient } from "@circle-fin/x402-batching/client";
 
 const client = new GatewayClient({
   chain: "arcTestnet",
-  privateKey: "0x0000000000000000000000000000000000000000000000000000000000000001",
+  privateKey: (process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY || process.env.AGENT_PRIVATE_KEY) as `0x${string}`,
 });
 
 async function main() {

@@ -29,7 +29,6 @@ dist/
 build/
 
 docs/
-scripts/
 
 # Debug logs
 npm-debug.log*
@@ -46,3 +45,6 @@ pnpm-debug.log*
 
 project.md
 sponsor.md
+
+# Keystores & credentials
+*agent-keys.json

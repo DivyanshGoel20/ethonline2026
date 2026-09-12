@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { Agent } from "@/types";
+import { getHumanCreditTier } from "./reputationStore";
 
 function getAgentsFilePath(): string {
   const candidates = [
@@ -117,22 +118,20 @@ export function getHumanFacilityStats(
   totalRepaid: number;
 } {
   const humanAgents = getAgentsByOwner(humanOwner, agentBookHumanId);
-  const totalCreditLimit = 10; // Single $10 facility limit per human
-  const totalOutstandingDebt = humanAgents.reduce(
-    (sum, a) => sum + (a.outstandingDebt || 0),
-    0
-  );
-  const totalBorrowed = humanAgents.reduce(
-    (sum, a) => sum + (a.totalBorrowed || 0),
-    0
-  );
-  const totalRepaid = humanAgents.reduce(
-    (sum, a) => sum + (a.totalRepaid || 0),
-    0
-  );
+  const tier = getHumanCreditTier(humanOwner);
+  const totalCreditLimit = tier.creditLimit;
+  const totalOutstandingDebt = Math.round(
+    humanAgents.reduce((sum, a) => sum + (a.outstandingDebt || 0), 0) * 10000
+  ) / 10000;
+  const totalBorrowed = Math.round(
+    humanAgents.reduce((sum, a) => sum + (a.totalBorrowed || 0), 0) * 10000
+  ) / 10000;
+  const totalRepaid = Math.round(
+    humanAgents.reduce((sum, a) => sum + (a.totalRepaid || 0), 0) * 10000
+  ) / 10000;
   const totalAvailableCredit = Math.max(
     0,
-    totalCreditLimit - totalOutstandingDebt
+    Math.round((totalCreditLimit - totalOutstandingDebt) * 100) / 100
   );
 
   return {

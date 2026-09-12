@@ -56,7 +56,11 @@ export class FloatSignerTS {
     this.fundingPrivateKey =
       options?.fundingPrivateKey ||
       (process.env.FLOAT_FUNDING_PRIVATE_KEY as `0x${string}`) ||
-      "0x0000000000000000000000000000000000000000000000000000000000000001";
+      (process.env.PRIVATE_KEY as `0x${string}`);
+
+    if (!this.fundingPrivateKey) {
+      throw new Error("Missing FLOAT_FUNDING_PRIVATE_KEY or PRIVATE_KEY in environment");
+    }
 
     this.floatFundingClient = new GatewayClient({
       chain: options?.chain || "arcTestnet",

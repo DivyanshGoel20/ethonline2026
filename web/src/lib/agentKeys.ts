@@ -4,12 +4,20 @@ import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, http } from "viem";
 import { arcTestnetChain } from "./facilityContract";
 
-// Known fallback keys in memory
-const PRECONFIGURED_KEYS: Record<string, `0x${string}`> = {
-  // Test Agent provided by user
-  "0xa5509d881a4632591117bcb7145ec9e80c015dc3":
-    "0x362f0a2417abfa7420141b6a44350e7310d1fa947db0cbe9e3d11623765d7319",
-};
+// Dynamic agent keys resolved from environment variables
+function getEnvAgentKeys(): Record<string, `0x${string}`> {
+  const envKeys: Record<string, `0x${string}`> = {};
+  const rawKey = process.env.AGENT_PRIVATE_KEY;
+  if (rawKey && rawKey.startsWith("0x") && rawKey.length === 66) {
+    try {
+      const account = privateKeyToAccount(rawKey as `0x${string}`);
+      envKeys[account.address.toLowerCase()] = rawKey as `0x${string}`;
+    } catch {
+      // ignore invalid env key
+    }
+  }
+  return envKeys;
+}
 
 function getKeysFilePath(): string {
   const candidates = [
@@ -23,16 +31,17 @@ function getKeysFilePath(): string {
 }
 
 function loadKeys(): Record<string, string> {
+  const envKeys = getEnvAgentKeys();
   try {
     const filePath = getKeysFilePath();
     if (fs.existsSync(filePath)) {
       const content = fs.readFileSync(filePath, "utf8");
-      return { ...PRECONFIGURED_KEYS, ...JSON.parse(content) };
+      return { ...envKeys, ...JSON.parse(content) };
     }
   } catch (err) {
     console.warn("[AgentKeys] Error reading agent keys file:", err);
   }
-  return { ...PRECONFIGURED_KEYS };
+  return { ...envKeys };
 }
 
 function saveKeys(keys: Record<string, string>) {
