@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wght@300;400;500;600&display=swap">
+  <style>
+    :root{
+      --void:#08080A; --grid:#1C1D21; --grid2:#131418;
+      --amb:#E0A33C; --dim:#6E6A5E; --pale:#C9C5B8;
+      --m:'Martian Mono',ui-monospace,Menlo,'SF Mono',monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--void);color:var(--pale);font-family:var(--m);-webkit-font-smoothing:antialiased}
+    a{color:var(--amb);text-decoration:none} a:hover{color:#fff}
+    .k{font-size:8.5px;font-weight:400;letter-spacing:.24em;text-transform:uppercase;color:var(--dim)}
+    .v{font-size:30px;font-weight:300;letter-spacing:-.02em;color:var(--pale);font-variant-numeric:tabular-nums}
+    @keyframes sweep{0%,100%{opacity:.25}50%{opacity:1}}
+  </style>
+</helmet>
+
+<div style="min-height: 900px; width: 100%; background: var(--void); padding: 30px; position: relative">
+  <div style="border: 1px solid var(--grid); min-height: 840px; position: relative; display: flex; flex-direction: column">
+
+    <!-- corner ticks -->
+    <div style="position: absolute; left: -1px; top: -1px; width: 13px; height: 13px; border-left: 1px solid var(--amb); border-top: 1px solid var(--amb)"></div>
+    <div style="position: absolute; right: -1px; top: -1px; width: 13px; height: 13px; border-right: 1px solid var(--amb); border-top: 1px solid var(--amb)"></div>
+    <div style="position: absolute; left: -1px; bottom: -1px; width: 13px; height: 13px; border-left: 1px solid var(--amb); border-bottom: 1px solid var(--amb)"></div>
+    <div style="position: absolute; right: -1px; bottom: -1px; width: 13px; height: 13px; border-right: 1px solid var(--amb); border-bottom: 1px solid var(--amb)"></div>
+
+    <!-- header strip -->
+    <div style="height: 46px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; border-bottom: 1px solid var(--grid)">
+      <div style="display: flex; align-items: center; gap: 22px">
+        <span style="font-size: 13px; font-weight: 600; letter-spacing: .42em; color: var(--amb)">FLOAT</span>
+        <span class="k">facility telemetry</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 22px">
+        <span class="k">arc-testnet</span>
+        <span class="k">world-chain</span>
+        <span class="k" style="color: var(--amb)">0xAa2d&hellip;0686</span>
+        <span style="display: block; width: 6px; height: 6px; background: var(--amb); animation: sweep 2.2s ease-in-out infinite"></span>
+      </div>
+    </div>
+
+    <!-- plot -->
+    <div style="flex: none; padding: 20px 22px 6px">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px">
+        <span class="k">utilisation &middot; 7d &middot; sample 1h</span>
+        <span class="k">limit $10.00 &middot; tier 1 starter</span>
+      </div>
+      <svg viewBox="0 0 1340 400" style="display: block; width: 100%; height: 400px">
+        <sc-for list="{{v.hlines}}" as="g" hint-placeholder-count="5">
+          <g>
+            <line x1="46" y1="{{g.y}}" x2="1300" y2="{{g.y}}" stroke="#1C1D21" stroke-width="1"/>
+            <text x="6" y="{{g.ty}}" fill="#6E6A5E" font-family="Martian Mono, monospace" font-size="9">{{g.lab}}</text>
+          </g>
+        </sc-for>
+        <sc-for list="{{v.vlines}}" as="g" hint-placeholder-count="7">
+          <g>
+            <line x1="{{g.x}}" y1="24" x2="{{g.x}}" y2="352" stroke="#131418" stroke-width="1"/>
+            <text x="{{g.tx}}" y="374" fill="#6E6A5E" font-family="Martian Mono, monospace" font-size="9">{{g.lab}}</text>
+          </g>
+        </sc-for>
+        <sc-for list="{{v.drops}}" as="d" hint-placeholder-count="7">
+          <line x1="{{d.x}}" y1="{{d.y}}" x2="{{d.x}}" y2="352" stroke="#E0A33C" stroke-width="1" stroke-dasharray="1 4" opacity="0.5"/>
+        </sc-for>
+        <polyline points="{{v.trace}}" fill="none" stroke="#E0A33C" stroke-width="1.4" stroke-linejoin="round"/>
+        <sc-for list="{{v.drops}}" as="d" hint-placeholder-count="7">
+          <rect x="{{d.rx}}" y="{{d.ry}}" width="5" height="5" fill="none" stroke="#E0A33C" stroke-width="1"/>
+        </sc-for>
+        <line x1="1300" y1="24" x2="1300" y2="352" stroke="#E0A33C" stroke-width="1" opacity="0.7"/>
+        <line x1="46" y1="{{v.nowY}}" x2="1300" y2="{{v.nowY}}" stroke="#E0A33C" stroke-width="1" opacity="0.35" stroke-dasharray="6 4"/>
+        <rect x="1168" y="{{v.boxY}}" width="126" height="34" fill="#08080A" stroke="#E0A33C" stroke-width="1"/>
+        <text x="1178" y="{{v.boxT1}}" fill="#6E6A5E" font-family="Martian Mono, monospace" font-size="8" letter-spacing="2">NOW</text>
+        <text x="1178" y="{{v.boxT2}}" fill="#E0A33C" font-family="Martian Mono, monospace" font-size="13">23.8% &middot; $2.38</text>
+      </svg>
+    </div>
+
+    <!-- readouts -->
+    <div style="flex: none; display: flex; border-top: 1px solid var(--grid); border-bottom: 1px solid var(--grid)">
+      <sc-for list="{{v.read}}" as="r" hint-placeholder-count="5">
+        <div style="flex-grow: 1; padding: 16px 22px; border-right: 1px solid var(--grid)">
+          <div class="k">{{r.k}}</div>
+          <div class="v" style="margin-top: 8px; color: {{r.c}}">{{r.v}}</div>
+          <div class="k" style="margin-top: 7px; letter-spacing: .12em; color: #4E4B44">{{r.sub}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- agent channels -->
+    <div style="flex-grow: 1; padding: 16px 22px">
+      <div class="k" style="margin-bottom: 12px">agent channels</div>
+      <sc-for list="{{v.agents}}" as="a" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 20px; padding: 11px 0; border-bottom: 1px solid var(--grid2)">
+          <span style="width: 8px; height: 8px; flex: none; border: 1px solid {{a.c}}; background: {{a.fill}}"></span>
+          <span style="width: 130px; flex: none; font-size: 12px; letter-spacing: .04em">{{a.name}}</span>
+          <span style="width: 150px; flex: none; font-size: 10px; color: var(--dim)">{{a.addr}}</span>
+          <span style="width: 130px; flex: none; font-size: 9px; letter-spacing: .16em; color: {{a.c}}">{{a.tag}}</span>
+          <span style="flex-grow: 1; font-size: 11px; letter-spacing: .22em; color: {{a.c}}">{{a.bar}}</span>
+          <span style="width: 90px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums">{{a.owed}}</span>
+          <span style="width: 90px; text-align: right; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums">{{a.limit}}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const series = [4.0, 11.2, 8.6, 21.9, 16.4, 31.0, 23.8];
+    const x0 = 46, x1 = 1300, yTop = 24, yBot = 352;
+    const px = (i) => x0 + (i * (x1 - x0)) / (series.length - 1);
+    const py = (v) => yBot - (v / 40) * (yBot - yTop);
+
+    const trace = series.map((v, i) => px(i).toFixed(1) + ',' + py(v).toFixed(1)).join(' ');
+    const drops = series.map((v, i) => ({
+      x: px(i).toFixed(1),
+      y: py(v).toFixed(1),
+      rx: (px(i) - 2.5).toFixed(1),
+      ry: (py(v) - 2.5).toFixed(1),
+    }));
+
+    const hlines = [0, 10, 20, 30, 40].map((p) => ({
+      y: py(p).toFixed(1),
+      ty: (py(p) + 3).toFixed(1),
+      lab: p + '%',
+    }));
+
+    const days = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'NOW'];
+    const vlines = days.map((d, i) => ({
+      x: px(i).toFixed(1),
+      tx: (px(i) - 10).toFixed(1),
+      lab: d,
+    }));
+
+    const nowY = py(series[series.length - 1]);
+    const bar = (n) => '█'.repeat(n) + '·'.repeat(12 - n);
+
+    return {
+      v: {
+        trace, drops, hlines, vlines,
+        nowY: nowY.toFixed(1),
+        boxY: (nowY - 44).toFixed(1),
+        boxT1: (nowY - 30).toFixed(1),
+        boxT2: (nowY - 16).toFixed(1),
+        read: [
+          { k: 'available', v: '$7.62', sub: 'usdc · arc', c: '#C9C5B8' },
+          { k: 'drawn', v: '$2.38', sub: '3 open positions', c: '#E0A33C' },
+          { k: 'interest accrued', v: '$0.01', sub: '0.05% / day', c: '#C9C5B8' },
+          { k: 'settled 30d', v: '$14.80', sub: '11 on-time', c: '#C9C5B8' },
+          { k: 'next tier at', v: '$0.10', sub: 'interest paid → $25.00', c: '#C9C5B8' },
+        ],
+        agents: [
+          { name: 'SCOUT', addr: '0x9F2c…41Ae', tag: 'WORLD-BACKED', bar: bar(4), owed: '$1.20', limit: '/ $4.00', c: '#E0A33C', fill: '#E0A33C' },
+          { name: 'COURIER', addr: '0x3Bd1…07C4', tag: 'WORLD-BACKED', bar: bar(0), owed: '$0.00', limit: '/ $3.00', c: '#6E6A5E', fill: 'transparent' },
+          { name: 'LEDGERBOT', addr: '0xC77a…9E30', tag: 'UNVERIFIED', bar: bar(5), owed: '$1.18', limit: '/ $3.00', c: '#8C6A3A', fill: 'transparent' },
+        ],
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

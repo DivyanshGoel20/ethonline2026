@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Familjen+Grotesk:wght@400;500&family=Martian+Mono:wght@300;400;500&display=swap">
+  <style>
+    :root{
+      --paper:#F3F0E7; --ink:#17150F; --ink2:#5B5648; --ink3:#8E8877; --rule:#D5CFBF;
+      --sea:#2B4A7E;
+      --d:'Instrument Serif',Georgia,'Times New Roman',serif;
+      --u:'Familjen Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+      --m:'Martian Mono',ui-monospace,Menlo,'SF Mono',monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--u);-webkit-font-smoothing:antialiased}
+    a{color:var(--ink2);text-decoration:none} a:hover{color:var(--ink)}
+    .mn{font-family:var(--m);font-variant-numeric:tabular-nums}
+    button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+    .cta{height:52px;padding:0 28px;background:var(--ink);color:var(--paper);display:flex;align-items:center;gap:13px;transition:background .18s}
+    .cta:hover{background:var(--sea)}
+    @keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    @keyframes drift2{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+  </style>
+</helmet>
+
+<div style="min-height: 900px; width: 100%; background: var(--paper); display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="height: 58px; flex: none; display: flex; align-items: center; padding: 0 64px; border-bottom: 1px solid var(--ink)">
+    <div style="display: flex; align-items: baseline; gap: 10px">
+      <span style="font-family: var(--d); font-size: 25px; letter-spacing: -.015em">float</span>
+      <span style="display: block; width: 26px; height: 3px; background: var(--sea); margin-bottom: 5px"></span>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 64px">
+    <h1 style="font-family: var(--d); font-size: 86px; line-height: 1.0; letter-spacing: -.028em; margin: 0; max-width: 15ch; text-wrap: pretty">
+      An agent can hold the money.<br>
+      Only a human can hold the <span style="color: var(--sea)">debt</span>.
+    </h1>
+
+    <p style="font-size: 18px; line-height: 1.6; color: var(--ink2); margin: 30px 0 0; max-width: 50ch">
+      Float opens a USDC credit line against a verified human, so their agents can keep paying when a bill lands before the balance does.
+    </p>
+
+    <div style="display: flex; align-items: center; gap: 24px; margin-top: 46px">
+      <button class="cta">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="3.6"/><path d="M4.5 20.2a7.8 7.8 0 0 1 15 0"/><circle cx="12" cy="12" r="10.2"/></svg>
+        <span class="mn" style="font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase">Verify with World Selfie Check</span>
+      </button>
+      <span class="mn" style="font-size: 10px; color: var(--ink3)">One human, one facility.</span>
+    </div>
+  </div>
+
+  <div style="flex: none; position: relative; height: 66px; background: var(--sea); color: var(--sea)">
+    <div style="position: absolute; left: 0; top: -16px; width: 200%; height: 19px; animation: drift 12s linear infinite; opacity: .42">
+      <svg viewBox="0 0 1200 40" preserveAspectRatio="none" style="display: block; width: 100%; height: 19px"><path d="M0,26 C100,10 200,40 300,26 C400,12 500,40 600,26 C700,10 800,40 900,26 C1000,12 1100,40 1200,26 L1200,40 L0,40 Z" fill="currentColor"/></svg>
+    </div>
+    <div style="position: absolute; left: 0; top: -10px; width: 200%; height: 15px; animation: drift2 19s linear infinite">
+      <svg viewBox="0 0 1200 40" preserveAspectRatio="none" style="display: block; width: 100%; height: 15px"><path d="M0,20 C150,38 250,6 400,20 C550,34 650,6 800,20 C950,34 1050,6 1200,20 L1200,40 L0,40 Z" fill="currentColor"/></svg>
+    </div>
+    <div style="position: absolute; left: 64px; right: 64px; bottom: 17px; display: flex; justify-content: space-between; color: var(--paper)">
+      <span class="mn" style="font-size: 9.5px; opacity: .82">$0.00 drawn of $10.00</span>
+      <span class="mn" style="font-size: 9.5px; opacity: .82">Arc &middot; World &middot; The Graph</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

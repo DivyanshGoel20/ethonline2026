@@ -1,0 +1,218 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Familjen+Grotesk:wght@400;500;600&family=Martian+Mono:wght@300;400;500&display=swap">
+  <style>
+    :root{
+      --paper:#F3F0E7; --sunk:#E9E5D9;
+      --ink:#17150F; --ink2:#5B5648; --ink3:#8E8877; --rule:#D5CFBF; --hair:#E4DFD1;
+      --d:'Instrument Serif',Georgia,'Times New Roman',serif;
+      --u:'Familjen Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+      --m:'Martian Mono',ui-monospace,Menlo,'SF Mono',monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--u);-webkit-font-smoothing:antialiased}
+    a{color:var(--ink2);text-decoration:none} a:hover{color:var(--ink)}
+    .lab{font-family:var(--m);font-size:8.5px;font-weight:400;letter-spacing:.22em;text-transform:uppercase;color:var(--ink3)}
+    .mn{font-family:var(--m);font-variant-numeric:tabular-nums}
+    button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+    @keyframes drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    @keyframes drift2{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+    .seaband{transition:height .9s cubic-bezier(.22,1,.36,1),background .3s}
+    .rider{transition:bottom .9s cubic-bezier(.22,1,.36,1)}
+    .fade{transition:opacity .5s ease}
+    .btn{height:30px;padding:0 13px;border:1px solid var(--rule);font-family:var(--m);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink2);transition:background .15s,color .15s,border-color .15s}
+    .btn:hover{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+    .btn.s{border-color:var(--ink);color:var(--ink)}
+    .btn:disabled{opacity:.28;cursor:default}
+    .btn:disabled:hover{background:none;color:var(--ink2);border-color:var(--rule)}
+    .row{transition:background .15s}
+    .row:hover{background:var(--sunk)}
+  </style>
+</helmet>
+
+<div style="min-height: 900px; width: 100%; background: var(--paper); display: flex; flex-direction: column">
+
+  <!-- rail -->
+  <div style="height: 58px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 64px; border-bottom: 1px solid var(--ink)">
+    <div style="display: flex; align-items: baseline; gap: 10px">
+      <span style="font-family: var(--d); font-size: 25px; letter-spacing: -.015em">float</span>
+      <span style="display: block; width: 26px; height: 3px; background: {{f.sea}}; margin-bottom: 5px"></span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 18px">
+      <span class="mn" style="font-size: 9.5px; color: var(--ink3)">human 0x71c4&hellip;9ab2</span>
+      <button class="btn s">Add agent</button>
+    </div>
+  </div>
+
+  <!-- the line -->
+  <div style="padding: 44px 64px 0">
+    <div style="position: relative; height: 300px; background: var(--sunk); border: 1px solid var(--ink); overflow: hidden">
+
+      <div class="seaband" style="position: absolute; left: 0; right: 0; bottom: 0; height: {{f.waterH}}; background: {{f.sea}}; color: {{f.sea}}">
+        <div style="position: absolute; left: 0; top: -16px; width: 200%; height: 19px; animation: drift 12s linear infinite; opacity: .42">
+          <svg viewBox="0 0 1200 40" preserveAspectRatio="none" style="display: block; width: 100%; height: 19px"><path d="M0,26 C100,10 200,40 300,26 C400,12 500,40 600,26 C700,10 800,40 900,26 C1000,12 1100,40 1200,26 L1200,40 L0,40 Z" fill="currentColor"/></svg>
+        </div>
+        <div style="position: absolute; left: 0; top: -10px; width: 200%; height: 15px; animation: drift2 19s linear infinite">
+          <svg viewBox="0 0 1200 40" preserveAspectRatio="none" style="display: block; width: 100%; height: 15px"><path d="M0,20 C150,38 250,6 400,20 C550,34 650,6 800,20 C950,34 1050,6 1200,20 L1200,40 L0,40 Z" fill="currentColor"/></svg>
+        </div>
+        <div class="fade" style="position: absolute; left: 40px; bottom: 22px; color: var(--paper); opacity: {{f.sunkOp}}">
+          <span class="mn" style="font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase; opacity: .72">Drawn</span>
+          <span style="font-family: var(--d); font-size: 30px; margin-left: 12px">{{f.outstanding}}</span>
+        </div>
+      </div>
+
+      <div class="rider" style="position: absolute; left: 40px; bottom: {{f.riderBottom}}">
+        <div class="lab" style="margin-bottom: 3px">Available to draw</div>
+        <div style="font-family: var(--d); font-size: 92px; line-height: .85; letter-spacing: -.03em">{{f.available}}</div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 13px">
+      <span class="mn" style="font-size: 9.5px; color: var(--ink3)">{{f.terms}}</span>
+      <span class="mn" style="font-size: 9.5px; color: var(--ink3)">0xAa2d&hellip;0686 &middot; Arc testnet</span>
+    </div>
+  </div>
+
+  <!-- agents -->
+  <div style="padding: 40px 64px 0">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px">
+      <span style="font-family: var(--d); font-size: 24px">Agents</span>
+      <span class="mn" style="font-size: 9.5px; color: var(--ink3)">{{f.agentCount}} on this line</span>
+    </div>
+
+    <div style="border-top: 1px solid var(--ink)">
+      <sc-for list="{{f.agents}}" as="a" hint-placeholder-count="3">
+        <div class="row" style="display: flex; align-items: center; gap: 24px; padding: 0 14px; height: 58px; border-bottom: 1px solid var(--hair)">
+          <div style="flex-grow: 1; min-width: 0">
+            <div style="font-size: 14.5px; font-weight: 500; letter-spacing: -.005em">{{a.name}}</div>
+            <div class="mn" style="font-size: 9px; color: var(--ink3); margin-top: 2px">{{a.addr}}</div>
+          </div>
+          <div class="mn" style="font-size: 14px; width: 96px; text-align: right; color: {{a.debtColor}}">{{a.debt}}</div>
+          <div style="display: flex; gap: 8px; flex: none">
+            <button class="btn s" onClick="{{a.draw}}" disabled="{{a.drawOff}}">Draw</button>
+            <button class="btn" onClick="{{a.settle}}" disabled="{{a.settleOff}}">Settle</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- tape -->
+  <div style="padding: 34px 64px 44px">
+    <div class="lab" style="margin-bottom: 10px">Recent</div>
+    <sc-for list="{{f.feed}}" as="e" hint-placeholder-count="3">
+      <div style="display: flex; align-items: baseline; gap: 20px; padding: 7px 0">
+        <span class="mn" style="font-size: 9.5px; color: var(--ink3); width: 64px; flex: none">{{e.t}}</span>
+        <span style="font-size: 12.5px; color: var(--ink2); flex-grow: 1">{{e.txt}}</span>
+        <span class="mn" style="font-size: 9.5px; color: var(--ink3)">{{e.tx}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "sea": {"editor": "color", "default": "#2B4A7E", "options": ["#2B4A7E", "#1E5A4E", "#5A2E45", "#2F3340"]},
+  "$preview": {"width": 1440, "height": 900}
+}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      clock: 14 * 3600 + 2 * 60 + 31,
+      agents: [
+        { id: 'a1', name: 'Scout', addr: '0x9F2c…41Ae', limit: 4, debt: 1.20 },
+        { id: 'a2', name: 'Courier', addr: '0x3Bd1…07C4', limit: 3, debt: 0 },
+        { id: 'a3', name: 'Ledgerbot', addr: '0xC77a…9E30', limit: 3, debt: 1.18 },
+      ],
+      feed: [
+        { t: '14:02:31', txt: 'Scout paid a 402 challenge it could not fund', tx: '0x4c1f…a903' },
+        { t: '13:58:04', txt: 'Scout drew $0.20 against the human facility', tx: '0x8e0b…11d7' },
+        { t: '11:40:52', txt: 'Courier cleared $1.40 principal plus $0.01 interest', tx: '0xb3aa…7f20' },
+      ],
+    };
+  }
+
+  money(n) { return '$' + n.toFixed(2); }
+
+  log(txt) {
+    const s = this.state.clock + 37;
+    const p = (x) => String(x).padStart(2, '0');
+    const label = p(Math.floor(s / 3600) % 24) + ':' + p(Math.floor(s / 60) % 60) + ':' + p(s % 60);
+    const hex = '0123456789abcdef';
+    const pick = (n) => Array.from({ length: n }, () => hex[Math.floor(Math.random() * 16)]).join('');
+    this.setState({
+      clock: s,
+      feed: [{ t: label, txt, tx: '0x' + pick(4) + '…' + pick(4) }].concat(this.state.feed).slice(0, 3),
+    });
+  }
+
+  draw(id) {
+    const used = this.state.agents.reduce((n, a) => n + a.debt, 0);
+    this.setState({
+      agents: this.state.agents.map((a) => {
+        if (a.id !== id) return a;
+        const room = Math.min(a.limit - a.debt, 10 - used, 0.5);
+        if (room <= 0) return a;
+        this.log(a.name + ' drew ' + this.money(room) + ' against the human facility');
+        return Object.assign({}, a, { debt: Math.round((a.debt + room) * 100) / 100 });
+      }),
+    });
+  }
+
+  settle(id) {
+    this.setState({
+      agents: this.state.agents.map((a) => {
+        if (a.id !== id || a.debt <= 0) return a;
+        this.log(a.name + ' cleared ' + this.money(a.debt) + ' principal plus $0.01 interest');
+        return Object.assign({}, a, { debt: 0 });
+      }),
+    });
+  }
+
+  renderVals() {
+    const sea = this.props.sea ?? '#2B4A7E';
+    const cap = 10;
+    const used = this.state.agents.reduce((n, a) => n + a.debt, 0);
+    const avail = Math.max(0, cap - used);
+    const util = Math.max(0, Math.min(100, (used / cap) * 100));
+    const rider = Math.min(util, 56);
+
+    return {
+      f: {
+        sea,
+        available: this.money(avail),
+        outstanding: this.money(used),
+        waterH: util.toFixed(2) + '%',
+        riderBottom: 'calc(' + rider.toFixed(2) + '% + 22px)',
+        sunkOp: util >= 14 ? '1' : '0',
+        terms: '$10.00 facility · 1% origination · 0.05% per day · 7-day term',
+        agentCount: this.state.agents.length,
+        agents: this.state.agents.map((a) => ({
+          name: a.name,
+          addr: a.addr,
+          debt: this.money(a.debt),
+          debtColor: a.debt > 0 ? '#17150F' : '#8E8877',
+          drawOff: a.debt >= a.limit || avail <= 0,
+          settleOff: a.debt <= 0,
+          draw: () => this.draw(a.id),
+          settle: () => this.settle(a.id),
+        })),
+        feed: this.state.feed,
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>

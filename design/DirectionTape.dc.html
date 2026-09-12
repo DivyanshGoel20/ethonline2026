@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap">
+  <style>
+    :root{
+      --stock:#F0EDE2; --bar:#DFE8DB; --edge:#E3DFD2;
+      --ink:#211E17; --ink2:#5A5548; --ink3:#8C8676; --stamp:#9E3B22;
+      --c:'Courier Prime','Courier New',ui-monospace,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--stock);color:var(--ink);font-family:var(--c);font-size:13px;-webkit-font-smoothing:antialiased}
+    a{color:var(--stamp)} a:hover{color:var(--ink)}
+    .sprocket{width:34px;flex:none;background:var(--edge);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 0}
+    .hole{width:11px;height:11px;border-radius:50%;background:var(--stock);box-shadow:inset 0 1px 1px rgba(0,0,0,.14)}
+    .r{display:flex;gap:0;padding:5px 0;line-height:1.5}
+    .t{white-space:pre}
+  </style>
+</helmet>
+
+<div style="min-height: 900px; width: 100%; background: var(--stock); display: flex">
+
+  <div class="sprocket">
+    <sc-for list="{{v.holes}}" as="h" hint-placeholder-count="16"><div class="hole"></div></sc-for>
+  </div>
+
+  <div style="flex-grow: 1; min-width: 0; padding: 30px 34px; position: relative">
+
+    <!-- masthead -->
+    <div style="border-bottom: 2px solid var(--ink); padding-bottom: 12px">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end">
+        <div>
+          <div class="t" style="font-size: 26px; font-weight: 700; letter-spacing: .3em">F L O A T</div>
+          <div class="t" style="font-size: 12px; color: var(--ink2); margin-top: 6px">STATEMENT OF ACCOUNT &mdash; HUMAN CREDIT FACILITY</div>
+        </div>
+        <div class="t" style="font-size: 11px; color: var(--ink2); text-align: right; line-height: 1.9">
+RUN  2026-09-12 14:02:31 UTC
+HUM  0x71c4...9ab2  [WORLD SELFIE]
+FAC  0xAa2d...0686  ARC-TESTNET
+        </div>
+      </div>
+    </div>
+
+    <!-- summary block -->
+    <div style="display: flex; gap: 0; margin-top: 20px; border: 1px solid var(--ink)">
+      <sc-for list="{{v.summary}}" as="s" hint-placeholder-count="4">
+        <div style="flex-grow: 1; padding: 14px 16px; border-right: 1px solid var(--ink)">
+          <div class="t" style="font-size: 10px; letter-spacing: .16em; color: var(--ink3)">{{s.k}}</div>
+          <div class="t" style="font-size: 24px; font-weight: 700; margin-top: 6px">{{s.v}}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- utilisation, printed -->
+    <div style="margin-top: 20px">
+      <div class="t" style="font-size: 11px; letter-spacing: .16em; color: var(--ink3); margin-bottom: 7px">UTILISATION</div>
+      <div class="t" style="font-size: 15px; letter-spacing: .04em">[{{v.bar}}] {{v.pct}}</div>
+    </div>
+
+    <!-- agent ledger -->
+    <div style="margin-top: 26px">
+      <div class="t" style="font-size: 11px; letter-spacing: .16em; color: var(--ink3); border-bottom: 1px solid var(--ink); padding-bottom: 6px">AGENT LEDGER</div>
+
+      <div class="r" style="color: var(--ink3); font-size: 11px; border-bottom: 1px solid var(--ink3); padding-bottom: 6px">
+        <span style="width: 190px">AGENT</span>
+        <span style="width: 190px">ADDRESS</span>
+        <span style="width: 150px">STATUS</span>
+        <span style="width: 120px; text-align: right">SUB-LIMIT</span>
+        <span style="width: 120px; text-align: right">OWED</span>
+        <span style="width: 130px; text-align: right">LAST DRAW</span>
+      </div>
+
+      <sc-for list="{{v.rows}}" as="a" hint-placeholder-count="3">
+        <div class="r" style="background: {{a.bg}}; font-size: 13px">
+          <span style="width: 190px">{{a.name}}</span>
+          <span style="width: 190px; color: var(--ink2)">{{a.addr}}</span>
+          <span style="width: 150px; color: {{a.sc}}">{{a.status}}</span>
+          <span style="width: 120px; text-align: right">{{a.limit}}</span>
+          <span style="width: 120px; text-align: right; font-weight: 700">{{a.owed}}</span>
+          <span style="width: 130px; text-align: right; color: var(--ink2)">{{a.last}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- transaction tape -->
+    <div style="margin-top: 26px">
+      <div class="t" style="font-size: 11px; letter-spacing: .16em; color: var(--ink3); border-bottom: 1px solid var(--ink); padding-bottom: 6px">TRANSACTIONS &mdash; INDEXED BY THE GRAPH</div>
+      <sc-for list="{{v.tape}}" as="e" hint-placeholder-count="5">
+        <div class="r" style="background: {{e.bg}}; font-size: 12.5px">
+          <span style="width: 120px; color: var(--ink2)">{{e.t}}</span>
+          <span style="width: 110px; font-weight: 700; color: {{e.c}}">{{e.k}}</span>
+          <span style="flex-grow: 1">{{e.txt}}</span>
+          <span style="width: 150px; text-align: right; color: var(--ink2)">{{e.tx}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div class="t" style="margin-top: 30px; font-size: 12px; color: var(--ink3); text-align: center; letter-spacing: .2em">*** END OF STATEMENT ***</div>
+
+    <!-- rubber stamp -->
+    <div style="position: absolute; right: 62px; bottom: 96px; transform: rotate(-9deg); border: 3px double var(--stamp); padding: 10px 18px; opacity: .82">
+      <div class="t" style="color: var(--stamp); font-weight: 700; font-size: 19px; letter-spacing: .16em; line-height: 1.25; text-align: center">HUMAN<br>VERIFIED</div>
+      <div class="t" style="color: var(--stamp); font-size: 9px; letter-spacing: .1em; text-align: center; margin-top: 5px">WORLD SELFIE CHECK</div>
+    </div>
+  </div>
+
+  <div class="sprocket">
+    <sc-for list="{{v.holes}}" as="h" hint-placeholder-count="16"><div class="hole"></div></sc-for>
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const bar = '#'.repeat(24) + '.'.repeat(56);
+    return {
+      v: {
+        holes: new Array(17).fill(0),
+        summary: [
+          { k: 'FACILITY LIMIT', v: '$10.00' },
+          { k: 'DRAWN', v: '$2.38' },
+          { k: 'AVAILABLE', v: '$7.62' },
+          { k: 'TIER', v: 'STARTER' },
+        ],
+        bar,
+        pct: '23.8%',
+        rows: [
+          { name: 'SCOUT', addr: '0x9F2c...41Ae', status: 'WORLD-BACKED', sc: '#211E17', limit: '$4.00', owed: '$1.20', last: '13:58:04', bg: '#DFE8DB' },
+          { name: 'COURIER', addr: '0x3Bd1...07C4', status: 'WORLD-BACKED', sc: '#211E17', limit: '$3.00', owed: '$0.00', last: '11:40:52', bg: 'transparent' },
+          { name: 'LEDGERBOT', addr: '0xC77a...9E30', status: 'UNVERIFIED', sc: '#9E3B22', limit: '$3.00', owed: '$1.18', last: '09:12:19', bg: '#DFE8DB' },
+        ],
+        tape: [
+          { t: '14:02:31', k: 'X402', txt: 'SCOUT PAID A 402 CHALLENGE IT COULD NOT FUND', tx: '0x4c1f...a903', c: '#9E3B22', bg: '#DFE8DB' },
+          { t: '13:58:04', k: 'DRAW', txt: 'SCOUT DREW $0.20 AGAINST THE HUMAN FACILITY', tx: '0x8e0b...11d7', c: '#211E17', bg: 'transparent' },
+          { t: '11:40:52', k: 'SETTLE', txt: 'COURIER CLEARED $1.40 PRINCIPAL + $0.01 INTEREST', tx: '0xb3aa...7f20', c: '#211E17', bg: '#DFE8DB' },
+          { t: '09:12:19', k: 'AUTH', txt: 'HUMAN AUTHORISED LEDGERBOT FOR A $3.00 SUB-LIMIT', tx: '0x21c9...4e85', c: '#211E17', bg: 'transparent' },
+          { t: '08:30:00', k: 'OPEN', txt: 'FACILITY OPENED AT TIER 1 STARTER LINE', tx: '0x0a77...c218', c: '#211E17', bg: '#DFE8DB' },
+        ],
+      },
+    };
+  }
+}
+</script>
+</body>
+</html>
