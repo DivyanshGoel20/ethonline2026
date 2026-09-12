@@ -106,7 +106,13 @@ export async function scheduleRepayment(params: {
   }
 }
 
-/** What the network currently thinks of a parked repayment. */
+/**
+ * What the network currently thinks of a parked repayment.
+ *
+ * Only valid while the schedule is still in state. Once it executes, Hedera
+ * drops the entity and this throws INVALID_SCHEDULE_ID - use
+ * `scheduleStatus` from ./mirror for anything that has to survive execution.
+ */
 export async function inspect(scheduleId: string) {
   const client = clientFor(operator());
   try {

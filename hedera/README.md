@@ -149,6 +149,24 @@ npm run hedera:demo       # the agent: one call it can afford, one it cannot
 | fee payer | `0.0.7162784` (Blocky402's, from `/supported`) |
 | schedule ceiling | 2 months |
 
+## Verified on testnet
+
+Not a dry run. Operator `0.0.7975935`, run on 12 September 2026.
+
+| what | evidence |
+|---|---|
+| Agent self-funds a small call | [`0.0.7162784@1789245800`](https://hashscan.io/testnet/transaction/0.0.7162784@1789245800.184864946) — 0.005 USDC |
+| Agent short, Float covers it | [`0.0.7162784@1789245813`](https://hashscan.io/testnet/transaction/0.0.7162784@1789245813.947674847) — 0.125 USDC |
+| Repayment parked before the spend | schedule [`0.0.10509672`](https://hashscan.io/testnet/schedule/0.0.10509672), `wait_for_expiry: true` |
+| Consensus executed it, unattended | `executed_at` 2026-09-12T20:44:41Z; borrower `0.0.10509545` went 0.875000 → 0.750000 USDC |
+| Trail | topic [`0.0.10509546`](https://hashscan.io/testnet/topic/0.0.10509546), entries #11 drawdown → #12 payment → #13 repayment |
+
+Every settlement transaction id begins `0.0.7162784` — Blocky402's fee payer,
+submitting on behalf of a payer who never held HBAR.
+
+The execution was checked with a 70-second term rather than the default week,
+so the claim that nobody has to be awake is tested rather than asserted.
+
 ## Honest notes
 
 - The borrower's key lives in `.env` for the demo, so one script can show the
@@ -158,3 +176,8 @@ npm run hedera:demo       # the agent: one call it can afford, one it cannot
 - The risk feed's records are a fixed sample, not live underwriting data. They
   are deterministic on purpose: two buyers asking for the same record get the
   same answer, which is the least a paid feed owes anyone.
+- Entry #9 on the topic reads `repayment 0.000000`. That is a real bug's
+  fingerprint: an early version of the watcher wrote a repayment entry for a
+  schedule that had already executed before it started looking, so it recorded a
+  balance delta of zero. HCS is append-only, so it stays there. The watcher now
+  refuses to write an entry for a transition it did not witness.

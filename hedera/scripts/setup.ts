@@ -119,9 +119,11 @@ async function main() {
 
   if (have >= toUnits(USDC_SEED)) {
     console.log("\nSeeding:");
-    // The agent gets a little, so the demo can show it paying from its own
-    // balance and then running out and drawing on credit.
-    await seedUsdc(agent.id, "0.25");
+    // Deliberately less than one full-size call. The feed tops out at 25
+    // records for 0.125 USDC, so an agent holding 0.25 could always pay for
+    // itself and the credit path would be unreachable - which is exactly the
+    // thing this demo exists to show.
+    await seedUsdc(agent.id, "0.02");
     await seedUsdc(borrower.id, "1.00");
   } else {
     console.log("\n  Skipping USDC seeding - operator has none yet.");

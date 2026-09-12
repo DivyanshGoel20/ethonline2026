@@ -2,7 +2,7 @@
   "name": "float-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Float — Controlled USDC credit lines for AI agents with World Selfie Check, Arc settlement, and The Graph indexing",
+  "description": "Float \u2014 Controlled USDC credit lines for AI agents with World Selfie Check, Arc settlement, and The Graph indexing",
   "workspaces": [
     "web",
     "subgraph",
@@ -16,7 +16,9 @@
     "deposit": "tsx --env-file=.env scripts/deposit-gateway.ts",
     "hedera:setup": "tsx --env-file=.env hedera/scripts/setup.ts",
     "hedera:service": "tsx --env-file=.env hedera/service/server.ts",
-    "hedera:demo": "tsx --env-file=.env hedera/scripts/demo.ts"
+    "hedera:demo": "tsx --env-file=.env hedera/scripts/demo.ts",
+    "hedera:balance": "tsx --env-file=.env hedera/scripts/set-agent-balance.ts",
+    "hedera:watch": "tsx --env-file=.env hedera/scripts/watch-schedule.ts"
   },
   "keywords": [
     "ai-agents",
