@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Float — a credit line for agents that spend",
   description:
-    "Float opens a USDC credit line against a verified human, so their agents can keep paying when a bill lands before the balance does. Settled on Arc, gated by World, indexed by The Graph.",
+    "Float opens a USDC credit line against a verified human, so their agents can keep paying when a bill lands before the balance does. Settled on Arc, gated by World.",
 };
 
 export default function RootLayout({

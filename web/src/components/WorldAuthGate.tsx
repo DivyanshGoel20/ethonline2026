@@ -161,7 +161,7 @@ export const WorldAuthGate: React.FC<WorldAuthGateProps> = ({ onVerified }) => {
             $0.00 drawn of $10.00
           </span>
           <span className="mn" style={{ fontSize: 9.5, opacity: 0.82 }}>
-            Arc &middot; World &middot; The Graph
+            Arc &middot; World
           </span>
         </div>
       </div>

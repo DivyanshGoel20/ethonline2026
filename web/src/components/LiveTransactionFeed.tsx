@@ -31,9 +31,9 @@ const KIND_COLOR: Record<Kind, string> = {
 /**
  * The settlement tape.
  *
- * Polls the same contract telemetry the subgraph indexes, and prints one line
- * per event. Deliberately not a card grid: a credit facility produces a
- * chronological record, so it reads as one.
+ * Reads drawdowns and repayments straight off the facility contract on Arc
+ * and prints one line per event. Deliberately not a card grid: a credit
+ * facility produces a chronological record, so it reads as one.
  */
 export const LiveTransactionFeed: React.FC<LiveTransactionFeedProps> = ({
   humanOwner,
@@ -110,7 +110,7 @@ export const LiveTransactionFeed: React.FC<LiveTransactionFeedProps> = ({
       <div className="flex items-baseline justify-between gap-4 mb-3">
         <Label>Settlement tape</Label>
         <span className="mn faint" style={{ fontSize: 9 }}>
-          indexed by The Graph{latestBlock ? ` · block #${latestBlock}` : ""}
+          live from Arc{latestBlock ? ` · block #${latestBlock}` : ""}
         </span>
       </div>
 

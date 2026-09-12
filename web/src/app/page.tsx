@@ -319,7 +319,7 @@ export default function Dashboard() {
 
         <footer className="pt-4 flex flex-wrap justify-between gap-4">
           <Label>Float &middot; credit for machines that spend</Label>
-          <Label>Arc &middot; World &middot; The Graph</Label>
+          <Label>Arc &middot; World</Label>
         </footer>
       </main>
 
