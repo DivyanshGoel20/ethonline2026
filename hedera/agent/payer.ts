@@ -1,0 +1,174 @@
+/**
+ * The agent that spends, and the credit line that covers it when it cannot.
+ *
+ * The sequence is the point. An agent hits a metered endpoint, gets a 402 with
+ * a price it cannot cover, and rather than failing the call, Float steps in:
+ *
+ *   1. read the quote            - what does this actually cost?
+ *   2. check the agent's balance - can it pay for itself?
+ *   3. if not, park the repayment on Hedera BEFORE spending a cent
+ *   4. settle the invoice from Float's treasury
+ *   5. write both facts to the HCS trail
+ *
+ * Step 3 is deliberately ahead of step 4. The obligation exists on the ledger
+ * before the money moves, so there is no window in which Float has paid and
+ * holds nothing but a promise. On a chain without scheduled transactions that
+ * ordering is not available: the best you get is an allowance the borrower can
+ * revoke the moment the goods arrive.
+ */
+import { wrapFetchWithPayment } from "@x402/fetch";
+import { x402Client } from "@x402/core/client";
+import { createClientHederaSigner } from "@x402/hedera";
+import { ExactHederaScheme } from "@x402/hedera/exact/client";
+
+import { NETWORK, agent, fromUnits, operator, optionalTopicId, parseKey, type Identity } from "../src/config";
+import { usdcBalance } from "../src/mirror";
+import { scheduleRepayment, type ScheduledRepayment } from "../src/scheduled";
+import { append } from "../src/hcs";
+
+/** Repayment falls due this far after the drawdown. */
+const TERM_SECONDS = Number(process.env.FLOAT_TERM_SECONDS || 7 * 24 * 60 * 60);
+
+export type Receipt = {
+  fundedBy: "agent" | "float-credit";
+  amount: string;
+  data: unknown;
+  transactionId?: string;
+  scheduledRepayment?: ScheduledRepayment;
+  trail?: { transactionId: string; sequenceNumber: string }[];
+};
+
+function payingFetch(as: Identity) {
+  const signer = createClientHederaSigner(as.id, parseKey(as.key), { network: NETWORK });
+  const client = new x402Client().register("hedera:*", new ExactHederaScheme(signer));
+  return wrapFetchWithPayment(fetch, client);
+}
+
+/**
+ * Asks the resource what it wants without paying, so the funding decision is
+ * made against a real quote rather than an assumption about price.
+ */
+async function quote(url: string): Promise<{ amount: bigint; raw: any } | null> {
+  const res = await fetch(url);
+  if (res.status !== 402) return null;
+
+  // The requirements ride in the PAYMENT-REQUIRED header, not the body - the
+  // body is whatever preview the server chose to show a non-paying caller.
+  const header = res.headers.get("payment-required");
+  if (!header) return null;
+
+  let payload: any;
+  try {
+    payload = JSON.parse(Buffer.from(header, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+
+  const accepts: any[] = payload?.accepts ?? [];
+  const option = accepts.find((a) => a?.network === NETWORK) ?? accepts[0];
+  if (!option) return null;
+
+  return { amount: BigInt(option.amount ?? option.maxAmountRequired ?? "0"), raw: option };
+}
+
+export async function payForResource(url: string): Promise<Receipt> {
+  const buyer = agent();
+  const float = operator();
+  const topic = optionalTopicId();
+  const trail: Receipt["trail"] = [];
+
+  const q = await quote(url);
+  if (!q) {
+    // Nothing to pay for - either it is free or the server is not gating it.
+    const res = await fetch(url);
+    return { fundedBy: "agent", amount: "0.000000", data: await res.json() };
+  }
+
+  const price = q.amount;
+  const balance = await usdcBalance(buyer.id);
+  const canSelfFund = balance >= price;
+
+  console.log(`  quote     ${fromUnits(price)} USDC`);
+  console.log(`  agent has ${fromUnits(balance)} USDC -> ${canSelfFund ? "pays for itself" : "short, drawing on Float"}`);
+
+  let scheduled: ScheduledRepayment | undefined;
+
+  if (!canSelfFund) {
+    // The borrower commits to repayment before Float is out of pocket.
+    const borrower: Identity = {
+      id: process.env.HEDERA_BORROWER_ID || float.id,
+      key: process.env.HEDERA_BORROWER_KEY || float.key,
+    };
+
+    scheduled = await scheduleRepayment({
+      borrower,
+      amount: fromUnits(price),
+      dueInSeconds: TERM_SECONDS,
+      memo: `Float drawdown for ${new URL(url).pathname}`,
+    });
+
+    console.log(`  scheduled repayment ${scheduled.scheduleId} due ${scheduled.dueAt}`);
+
+    if (topic) {
+      try {
+        trail.push(
+          await append(topic, {
+            kind: "drawdown",
+            agent: buyer.id,
+            human: borrower.id,
+            amount: fromUnits(price),
+            scheduleId: scheduled.scheduleId,
+            dueAt: scheduled.dueAt,
+          })
+        );
+      } catch (err: any) {
+        // An audit write must never undo a drawdown that already happened.
+        console.warn(`  trail write failed (drawdown): ${err?.message || err}`);
+      }
+    }
+  }
+
+  // Whoever is funding it signs the transfer; Blocky402 counter-signs as fee
+  // payer and submits, so neither the agent nor Float needs HBAR for gas.
+  const paid = await payingFetch(canSelfFund ? buyer : float)(url);
+  if (!paid.ok) {
+    throw new Error(`resource returned ${paid.status} after payment: ${await paid.text()}`);
+  }
+
+  const settlement = paid.headers.get("payment-response") || paid.headers.get("x-payment-response");
+  let transactionId: string | undefined;
+  if (settlement) {
+    try {
+      transactionId = JSON.parse(Buffer.from(settlement, "base64").toString("utf8"))?.transaction;
+    } catch {
+      /* header shape is facilitator-specific; the data below is the real proof */
+    }
+  }
+
+  const data = await paid.json();
+
+  if (topic) {
+    try {
+      trail.push(
+        await append(topic, {
+          kind: "payment",
+          agent: buyer.id,
+          resource: url,
+          amount: fromUnits(price),
+          transactionId: transactionId ?? "(not reported)",
+        })
+      );
+    } catch (err: any) {
+      console.warn(`  trail write failed (payment): ${err?.message || err}`);
+    }
+  }
+
+  return {
+    fundedBy: canSelfFund ? "agent" : "float-credit",
+    amount: fromUnits(price),
+    data,
+    transactionId,
+    scheduledRepayment: scheduled,
+    trail,
+  };
+}
