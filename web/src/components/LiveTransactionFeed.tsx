@@ -9,7 +9,7 @@ interface LiveTransactionFeedProps {
   refreshTrigger?: number;
 }
 
-type Kind = "x402" | "draw" | "settle";
+type Kind = "x402" | "draw" | "settle" | "pending";
 
 interface TapeItem {
   id: string;
@@ -26,6 +26,7 @@ const KIND_COLOR: Record<Kind, string> = {
   x402: "var(--flare)",
   draw: "var(--sea)",
   settle: "var(--ink2)",
+  pending: "var(--ink3)",
 };
 
 /**
@@ -74,6 +75,22 @@ export const LiveTransactionFeed: React.FC<LiveTransactionFeedProps> = ({
             time: d.timestampIso ? new Date(d.timestampIso).toLocaleTimeString() : "—",
             txHash: d.txHash,
             txLink: d.txLink || (d.txHash ? `https://testnet.arcscan.app/tx/${d.txHash}` : undefined),
+          });
+        }
+
+        // Booked, not yet on chain. Shown so the tape reflects what is owed
+        // rather than only what has been proved, and so a batch landing reads
+        // as these lines collapsing into one settled row.
+        for (const p of t.pending ?? []) {
+          next.push({
+            id: `pending_${p.id}`,
+            kind: "pending",
+            text: `${short(p.agentAddress)} paid an x402 charge \u00b7 ${
+              p.settling ? "settling on Arc" : "awaiting batch"
+            }`,
+            amount: p.amountUsdc,
+            timestamp: p.timestamp * 1000,
+            time: p.timestampIso ? new Date(p.timestampIso).toLocaleTimeString() : "\u2014",
           });
         }
 

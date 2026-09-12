@@ -128,6 +128,30 @@ export function createLoan(params: {
 }
 
 /**
+ * Stamp the settling transaction onto loans that were booked before it existed.
+ *
+ * A loan created from an x402 nanopayment has no drawdown tx of its own - the
+ * debt waits in the pending ledger and reaches the chain as part of a batch.
+ * Until that batch lands the loan is real but unproven, which is what the UI
+ * shows as pending.
+ */
+export function attachBorrowTx(loanIds: string[], txHash: string): void {
+  if (loanIds.length === 0) return;
+  const wanted = new Set(loanIds);
+  const all = getAllLoans();
+  let touched = false;
+
+  for (const loan of all) {
+    if (wanted.has(loan.loanId) && !loan.borrowTxHash) {
+      loan.borrowTxHash = txHash;
+      touched = true;
+    }
+  }
+
+  if (touched) saveAllLoans(all);
+}
+
+/**
  * Flexible repayment engine:
  * Follows FIFO (First-In, First-Out) Tranche settlement:
  * Oldest loan is settled first. Settling the oldest loan immediately rolls forward

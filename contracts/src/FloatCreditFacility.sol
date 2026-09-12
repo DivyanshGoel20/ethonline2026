@@ -39,14 +39,29 @@ contract FloatCreditFacility {
         uint256 authorizedAt;
     }
 
+    /**
+     * One drawdown row, laid out to fit four storage slots.
+     *
+     * The reference used to be a string. A resource URL ran to three slots -
+     * roughly 60,000 gas - to annotate a payment worth a cent, so it is a hash
+     * now; the readable form lives off-chain and the hash proves which one it
+     * was. The remaining fields are ordered to pack: an address, a timestamp
+     * and a status share one slot, and an amount, a loan id and a payment count
+     * share the next.
+     *
+     * paymentCount is what makes a row a batch. One x402 payment is a batch of
+     * one; fifty of them settled together are a batch of fifty, and cost the
+     * same to record.
+     */
     struct Drawdown {
-        uint256 loanId;
         bytes32 profileId;
         address agentAddress;
-        uint256 amount;
-        uint256 timestamp;
+        uint64 timestamp;
         LoanStatus status;
-        string paymentReference; // e.g., x402 paymentId or resourceUrl
+        uint128 amount;
+        uint64 loanId;
+        uint32 paymentCount;
+        bytes32 referenceHash;
     }
 
     struct RepaymentRecord {
@@ -86,7 +101,8 @@ contract FloatCreditFacility {
         uint256 amount,
         uint256 newOutstandingDebt,
         uint256 timestamp,
-        string paymentReference
+        uint32 paymentCount,
+        bytes32 referenceHash
     );
     event RepaymentRecorded(
         uint256 indexed repaymentId,
@@ -249,12 +265,24 @@ contract FloatCreditFacility {
      *         Enforces credit limit and authorization.
      *         Actual payment is made via Float Gateway funding balance.
      */
+    /**
+     * @notice Record a drawdown against a profile.
+     * @param paymentCount How many payments this row settles. One for a single
+     * draw; N when an off-chain accumulator flushes N nanopayments at once.
+     * Recording fifty cent-payments individually costs fifty times the gas for
+     * the same debt, which is more than the payments are worth.
+     * @param referenceHash keccak of the human-readable reference, which is kept
+     * off-chain. A hash is one slot; the string it replaces was three.
+     */
     function recordDrawdown(
         bytes32 profileId,
         address agentAddress,
         uint256 amount,
-        string calldata paymentReference
+        uint32 paymentCount,
+        bytes32 referenceHash
     ) external returns (uint256 loanId) {
+        require(paymentCount > 0, "Batch must cover at least one payment");
+        require(amount <= type(uint128).max, "Amount too large");
         CreditProfile storage profile = profiles[profileId];
         require(profile.createdAt > 0, "Profile does not exist");
         require(profile.status == ProfileStatus.Active, "Profile is not active");
@@ -277,13 +305,14 @@ contract FloatCreditFacility {
 
         loanId = nextLoanId++;
         drawdowns[loanId] = Drawdown({
-            loanId: loanId,
             profileId: profileId,
             agentAddress: agentAddress,
-            amount: amount,
-            timestamp: block.timestamp,
+            timestamp: uint64(block.timestamp),
             status: LoanStatus.Active,
-            paymentReference: paymentReference
+            amount: uint128(amount),
+            loanId: uint64(loanId),
+            paymentCount: paymentCount,
+            referenceHash: referenceHash
         });
 
         emit DrawdownRecorded(
@@ -293,7 +322,8 @@ contract FloatCreditFacility {
             amount,
             profile.outstandingDebt,
             block.timestamp,
-            paymentReference
+            paymentCount,
+            referenceHash
         );
     }
 

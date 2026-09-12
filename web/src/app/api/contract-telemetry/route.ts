@@ -3,6 +3,7 @@ import { fetchCompleteContractTelemetry } from "@/lib/facilityContract";
 import { getAllAgents } from "@/lib/agentStore";
 import { getAllLoans } from "@/lib/loanStore";
 import { getCachedTelemetry, setCachedTelemetry } from "@/lib/telemetryCache";
+import { getPending } from "@/lib/pendingLedger";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,19 @@ export async function GET(req: NextRequest) {
       telemetry: {
         ...telemetry,
         drawdowns: enrichedDrawdowns,
+        // Nanopayments booked but not yet settled on chain. Real debt the
+        // operator owes, just not provable on Arc until its batch lands.
+        pending: humanOwner
+          ? getPending(humanOwner).map((e) => ({
+              id: e.id,
+              agentAddress: e.agentAddress,
+              amountUsdc: e.amountUsdc,
+              reference: e.reference,
+              timestamp: Math.floor(e.createdAt / 1000),
+              timestampIso: new Date(e.createdAt).toISOString(),
+              settling: !!e.claimedAt,
+            }))
+          : [],
       },
       cachedAgentsCount: agents.length,
       timestamp: Date.now(),

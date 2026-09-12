@@ -12,6 +12,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { FLOAT_CREDIT_FACILITY_ADDRESS, ARC_TESTNET_CHAIN_ID } from "./arc";
 import { getAgentPrivateKey } from "./agentKeys";
 import { depositToAgentGateway } from "./disburse";
+import { refHash } from "./paymentRef";
 
 export const arcTestnetChain = defineChain({
   id: ARC_TESTNET_CHAIN_ID,
@@ -69,7 +70,8 @@ export const FLOAT_CREDIT_FACILITY_ABI = [
       { name: "profileId", type: "bytes32" },
       { name: "agentAddress", type: "address" },
       { name: "amount", type: "uint256" },
-      { name: "paymentReference", type: "string" },
+      { name: "paymentCount", type: "uint32" },
+      { name: "referenceHash", type: "bytes32" },
     ],
     outputs: [{ name: "loanId", type: "uint256" }],
     stateMutability: "nonpayable",
@@ -192,14 +194,16 @@ export const FLOAT_CREDIT_FACILITY_ABI = [
     type: "function",
     name: "drawdowns",
     inputs: [{ name: "loanId", type: "uint256" }],
+    // Declaration order, which is also storage-slot order: the struct is packed.
     outputs: [
-      { name: "loanId", type: "uint256" },
       { name: "profileId", type: "bytes32" },
       { name: "agentAddress", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "timestamp", type: "uint256" },
+      { name: "timestamp", type: "uint64" },
       { name: "status", type: "uint8" },
-      { name: "paymentReference", type: "string" },
+      { name: "amount", type: "uint128" },
+      { name: "loanId", type: "uint64" },
+      { name: "paymentCount", type: "uint32" },
+      { name: "referenceHash", type: "bytes32" },
     ],
     stateMutability: "view",
   },
@@ -341,6 +345,11 @@ export async function executeOnChainDrawdown(params: {
   amountUsdc: number;
   paymentReference: string;
   /**
+   * How many nanopayments this row settles. One for a draw a human asked for;
+   * N when the pending ledger flushes N accumulated x402 payments at once.
+   */
+  paymentCount?: number;
+  /**
    * Whether to hand the agent the money as well as book the debt.
    *
    * True for a draw the human asked for. False on the x402 path, where Float
@@ -410,7 +419,9 @@ export async function executeOnChainDrawdown(params: {
       profileId,
       params.agentAddress as `0x${string}`,
       amountUnits,
-      params.paymentReference,
+      params.paymentCount ?? 1,
+      // Only the hash goes on chain; the readable reference stays on the loan.
+      refHash(params.paymentReference),
     ],
   });
 
@@ -724,15 +735,23 @@ const recordCache: Record<"drawdowns" | "repayments", Map<string, any>> = {
   repayments: new Map(),
 };
 
+/**
+ * Rows are immutable per contract, not per id. Keying on the id alone meant a
+ * redeploy served the previous facility's ledger indefinitely - the new
+ * contract's row 1 was never fetched because row 1 was already cached.
+ */
+const cacheKeyFor = (id: bigint) => `${FLOAT_CREDIT_FACILITY_ADDRESS.toLowerCase()}:${id}`;
+
 async function warmRecordCache(
   publicClient: ReturnType<typeof getPublicClient>,
   fn: "drawdowns" | "repayments",
   nextId: bigint
 ) {
+  const key = cacheKeyFor;
   const cache = recordCache[fn];
   const missing: bigint[] = [];
   for (let id = BigInt(1); id < nextId; id++) {
-    if (!cache.has(id.toString())) missing.push(id);
+    if (!cache.has(key(id))) missing.push(id);
   }
   if (missing.length === 0) return cache;
 
@@ -751,7 +770,7 @@ async function warmRecordCache(
   );
 
   for (const entry of rows) {
-    if (entry) cache.set(entry.id.toString(), entry.row);
+    if (entry) cache.set(key(entry.id), entry.row);
   }
   return cache;
 }
@@ -864,29 +883,36 @@ export async function fetchCompleteContractTelemetry(
   const drawdowns = [];
   for (let id = BigInt(1); id < nextLoanId; id++) {
     try {
-      const d = drawdownRows.get(id.toString()) as any;
+      const d = drawdownRows.get(cacheKeyFor(id)) as any;
       if (!d) continue;
 
-      // Filter drawdowns for this specific human profile if querying by owner
-      if (customHumanOwner && d[1]?.toLowerCase() !== profileId.toLowerCase()) {
+      // Filter drawdowns for this specific human profile if querying by owner.
+      // profileId is d[0] in the packed struct; d[1] is the agent, and comparing
+      // that to a profile id silently matched nothing.
+      if (customHumanOwner && d[0]?.toLowerCase() !== profileId.toLowerCase()) {
         continue;
       }
 
-      const timeNum = Number(d[4] || 0);
-      const amountUnits = Number(d[3] || 0);
-      const statusCode = Number(d[5] || 0);
+      // Packed struct order: profileId, agentAddress, timestamp, status,
+      // amount, loanId, paymentCount, referenceHash.
+      const timeNum = Number(d[2] || 0);
+      const amountUnits = Number(d[4] || 0);
+      const statusCode = Number(d[3] || 0);
 
       drawdowns.push({
-        loanId: Number(d[0] || id),
-        profileId: d[1],
-        agentAddress: d[2],
-        amountRaw: d[3].toString(),
+        loanId: Number(d[5] || id),
+        profileId: d[0],
+        agentAddress: d[1],
+        amountRaw: d[4].toString(),
         amountUsdc: amountUnits / 1e6,
         timestamp: timeNum,
         timestampIso: timeNum > 0 ? new Date(timeNum * 1000).toISOString() : "Unknown",
         statusCode,
         status: loanStatusLabels[statusCode] || "Active",
-        paymentReference: d[6] || "",
+        paymentCount: Number(d[6] || 1),
+        referenceHash: d[7] || "",
+        // Readable reference lives on the loan record, matched by the UI.
+        paymentReference: "",
         arcscanUrl: `https://testnet.arcscan.app/address/${d[2]}`,
       });
     } catch {
@@ -908,7 +934,7 @@ export async function fetchCompleteContractTelemetry(
   const repayments = [];
   for (let id = BigInt(1); id < nextRepaymentId; id++) {
     try {
-      const r = repaymentRows.get(id.toString()) as any;
+      const r = repaymentRows.get(cacheKeyFor(id)) as any;
       if (!r) continue;
 
       // Filter repayments for this specific human profile if querying by owner

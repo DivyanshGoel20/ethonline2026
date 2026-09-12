@@ -4,7 +4,7 @@ import React from "react";
 import { CreditStats as CreditStatsType } from "@/types";
 import { Wave, Boat, Label, usd } from "./ui";
 
-const FACILITY_CONTRACT = "0xAa2d23bAC7b6f9b4ca2737252F924b3F485E0686";
+const FACILITY_CONTRACT = "0x43bC32b6D54be323b9072494Efb8E8e073E642C4";
 const TICKS = [0, 25, 50, 75, 100];
 
 interface CreditStatsProps {

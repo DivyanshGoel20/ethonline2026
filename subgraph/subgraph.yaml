@@ -6,10 +6,10 @@ dataSources:
     name: FloatCreditFacility
     network: arc-testnet
     source:
-      address: "0xAa2d23bAC7b6f9b4ca2737252F924b3F485E0686"
+      address: "0x43bC32b6D54be323b9072494Efb8E8e073E642C4"
       abi: FloatCreditFacility
       # Deployment block of the facility. 0 would resync from genesis.
-      startBlock: 0  # TODO: set to the facility's deploy block before deploying
+      startBlock: 61795113
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9

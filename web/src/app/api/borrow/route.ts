@@ -7,6 +7,7 @@ import {
   getHumanFacilityStats,
 } from "@/lib/agentStore";
 import { createLoan } from "@/lib/loanStore";
+import { shortRef } from "@/lib/paymentRef";
 import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
 import { executeOnChainDrawdown } from "@/lib/facilityContract";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
@@ -88,7 +89,8 @@ export async function POST(req: NextRequest) {
       agentAddress: agent.address,
       humanOwner: agent.humanOwner,
       amountUsdc: borrowAmount,
-      paymentReference: memo || "Manual Credit Draw on Arc Testnet",
+      // Capped to one storage slot; the full memo stays on the loan record.
+      paymentReference: shortRef(memo || "draw"),
       // A draw the human asked for has to deliver the money, not just the debt.
       disburse: true,
     });

@@ -67,7 +67,7 @@ contract FloatCreditFacilityTest is TestHelper {
 
     function testDrawdownWithoutDirectTokenTransfer() public {
         // Agent A draws $0.03 (30,000 units) to cover an x402 overdraft
-        uint256 loanId = facility.recordDrawdown(profileId, agentA, 30_000, "x402:/premium-data:tx1");
+        uint256 loanId = facility.recordDrawdown(profileId, agentA, 30_000, 1, keccak256(bytes("x402:/premium-data:tx1")));
         assertEq(loanId, 1);
 
         assertEq(facility.getOutstandingDebt(profileId), 30_000);
@@ -76,7 +76,8 @@ contract FloatCreditFacilityTest is TestHelper {
         FloatCreditFacility.Drawdown memory d = facility.getDrawdown(loanId);
         assertEq(d.agentAddress, agentA);
         assertEq(d.amount, 30_000);
-        assertEq(d.paymentReference, "x402:/premium-data:tx1");
+        assertEq(d.referenceHash, keccak256(bytes("x402:/premium-data:tx1")));
+        assertEq(d.paymentCount, 1);
 
         // Notice: Contract does NOT transfer USDC to agent, as the x402 payment
         // is covered directly by Float's Gateway funding facility.
@@ -86,9 +87,9 @@ contract FloatCreditFacilityTest is TestHelper {
     function testMultiAgentSharedHumanCreditLimit() public {
         // Human credit limit = $500
         // Agent A draws $50
-        facility.recordDrawdown(profileId, agentA, 50 * 1e6, "x402:batch-1");
+        facility.recordDrawdown(profileId, agentA, 50 * 1e6, 1, keccak256(bytes("x402:batch-1")));
         // Agent B draws $30
-        facility.recordDrawdown(profileId, agentB, 30 * 1e6, "x402:batch-2");
+        facility.recordDrawdown(profileId, agentB, 30 * 1e6, 1, keccak256(bytes("x402:batch-2")));
 
         // Total Human Outstanding Debt = $80
         assertEq(facility.getOutstandingDebt(profileId), 80 * 1e6);
@@ -108,7 +109,7 @@ contract FloatCreditFacilityTest is TestHelper {
 
     function testExcessRepaymentCapped() public {
         // Agent A draws $20
-        facility.recordDrawdown(profileId, agentA, 20 * 1e6, "x402:draw-1");
+        facility.recordDrawdown(profileId, agentA, 20 * 1e6, 1, keccak256(bytes("x402:draw-1")));
         assertEq(facility.getOutstandingDebt(profileId), 20 * 1e6);
 
         // Payer attempts to repay $25
@@ -120,7 +121,7 @@ contract FloatCreditFacilityTest is TestHelper {
 
     function testOnChainRepayWithToken() public {
         // Agent A draws $10
-        facility.recordDrawdown(profileId, agentA, 10 * 1e6, "x402:token-draw");
+        facility.recordDrawdown(profileId, agentA, 10 * 1e6, 1, keccak256(bytes("x402:token-draw")));
 
         // Mint USDC to payer and approve facility
         usdc.mint(address(this), 10 * 1e6);

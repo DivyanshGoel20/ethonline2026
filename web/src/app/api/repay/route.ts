@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnedAgent } from "@/lib/session";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
+import { flushAgent } from "@/lib/ledgerFlush";
 import { RepayRequest, RepayResponse } from "@/types";
 import {
   getAgentByAddress,
@@ -90,6 +91,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Check if there is any debt to repay
+    // Settle any accumulated nanopayments before repaying. The contract
+    // subtracts from the debt it can see, and un-flushed drawdowns are not
+    // part of that yet - repaying the full off-chain balance against a
+    // smaller on-chain one would be refused.
+    await flushAgent(payingAgent.humanOwner, payingAgent.address, { force: true });
+
     const humanFacility = getHumanFacilityStats(payingAgent.humanOwner);
     if (humanFacility.totalOutstandingDebt <= 0.0001) {
       return NextResponse.json(

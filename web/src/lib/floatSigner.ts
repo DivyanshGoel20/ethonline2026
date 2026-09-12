@@ -8,7 +8,8 @@ import {
 import { createLoan } from "./loanStore";
 import { recordPayment, PaymentRecord } from "./paymentStore";
 import { FLOAT_CREDIT_FACILITY_ADDRESS } from "./arc";
-import { executeOnChainDrawdown } from "./facilityContract";
+import { addPending } from "./pendingLedger";
+import { flushAgent } from "./ledgerFlush";
 import { getAgentPrivateKey } from "./agentKeys";
 
 export interface AgentPaymentContext {
@@ -328,33 +329,39 @@ export class FloatSignerTS {
         );
       }
 
-      // 2. Submit REAL on-chain recordDrawdown transaction on Arc Testnet
-      let arcTxHash: string;
-      try {
-        const onChainResult = await executeOnChainDrawdown({
-          agentAddress: agentContext.agentAddress,
-          humanOwner,
-          amountUsdc: shortfallAmount,
-          paymentReference: `x402:${url}`,
-          // No disbursement here. Float settles with the seller directly a few
-          // lines below, so this drawdown is the ledger entry for that payment.
-          // Funding the agent as well would pay for the resource twice.
-          disburse: false,
-        });
-        arcTxHash = onChainResult.txHash;
-      } catch (err: any) {
-        console.error("[FloatSigner] On-chain recordDrawdown error:", err.message || err);
-        throw new Error(`Arc Testnet transaction failed: ${err.shortMessage || err.message || "Smart contract execution failed"}`);
-      }
-
+      // 2. Book the debt. It reaches the chain with the next batch.
+      //
+      // Writing a drawdown per nanopayment cost more gas than the payment was
+      // worth. The debt is recorded here first and settled on chain as one row
+      // covering however many payments have accumulated.
+      //
+      // Admission control above reads the agent store, which is updated the
+      // moment a payment is booked - so it already accounts for debt that has
+      // not reached the chain yet. Adding the pending total on top would
+      // double-count it, and the contract's own limit check cannot fail at
+      // flush time for the same reason: chain debt plus the batch can never
+      // exceed what the store already admitted.
       const loan = createLoan({
         agentAddress: agentContext.agentAddress,
         agentName: agent?.name || "Autonomous Agent",
         humanOwner,
         amount: shortfallAmount,
-        txHash: arcTxHash,
+        txHash: "",
         memo: `Float Overdraft x402 Drawdown for ${url}`,
       });
+
+      addPending({
+        humanOwner,
+        agentAddress: agentContext.agentAddress,
+        amountUsdc: shortfallAmount,
+        reference: "x402",
+        loanId: loan.loanId,
+      });
+
+      // Settles only once the position is worth the gas, or has waited long
+      // enough. Most calls return here without touching the chain at all.
+      const flush = await flushAgent(humanOwner, agentContext.agentAddress);
+      const arcTxHash = flush.txHash ?? "";
 
       // Update agent & human profile debt
       if (agent) {
