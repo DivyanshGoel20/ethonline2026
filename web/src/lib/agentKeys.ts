@@ -1,4 +1,5 @@
 import fs from "fs";
+import { writeJsonAtomic } from "./atomicWrite";
 import path from "path";
 import { privateKeyToAccount } from "viem/accounts";
 import { createWalletClient, http } from "viem";
@@ -51,7 +52,7 @@ function saveKeys(keys: Record<string, string>) {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    fs.writeFileSync(filePath, JSON.stringify(keys, null, 2), "utf8");
+    writeJsonAtomic(filePath, keys);
   } catch (err) {
     console.error("[AgentKeys] Error writing agent keys file:", err);
   }

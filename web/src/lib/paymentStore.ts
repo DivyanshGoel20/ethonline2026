@@ -1,4 +1,5 @@
 import fs from "fs";
+import { writeJsonAtomic } from "./atomicWrite";
 import path from "path";
 
 export interface PaymentRecord {
@@ -44,7 +45,7 @@ export function getAllPayments(): PaymentRecord[] {
 export function saveAllPayments(payments: PaymentRecord[]) {
   try {
     ensureDirectoryExists();
-    fs.writeFileSync(PAYMENTS_FILE, JSON.stringify(payments, null, 2), "utf8");
+    writeJsonAtomic(PAYMENTS_FILE, payments);
   } catch (error) {
     console.error("[PaymentStore] Error writing payments file:", error);
   }

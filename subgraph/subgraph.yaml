@@ -8,10 +8,11 @@ dataSources:
     source:
       address: "0xAa2d23bAC7b6f9b4ca2737252F924b3F485E0686"
       abi: FloatCreditFacility
-      startBlock: 0
+      # Deployment block of the facility. 0 would resync from genesis.
+      startBlock: 0  # TODO: set to the facility's deploy block before deploying
     mapping:
       kind: ethereum/events
-      apiVersion: 0.0.7
+      apiVersion: 0.0.9
       language: wasm/assemblyscript
       entities:
         - Facility

@@ -20,26 +20,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const nullifierHash =
+    // Fail closed. A timestamp fallback would mint a brand-new "human" on every
+    // login, which silently voids the one-human-one-credit-limit guarantee that
+    // the whole facility depends on.
+    const nullifierHash: string | undefined =
       verification.nullifier ||
       proofPayload.responses?.[0]?.nullifier ||
       proofPayload.nullifier ||
-      proofPayload.nullifier_hash ||
-      `nullifier_${Date.now()}`;
+      proofPayload.nullifier_hash;
+
+    if (!nullifierHash) {
+      console.error("[World-Verify] Proof verified but returned no nullifier - refusing to proceed");
+      return NextResponse.json(
+        {
+          verified: false,
+          error: "Verification succeeded but no nullifier was returned; cannot identify the human",
+          code: "missing_nullifier",
+        },
+        { status: 400 }
+      );
+    }
 
     console.log("[World-Verify] Authenticated unique World ID nullifier:", nullifierHash);
 
     // Ensure on-chain $10 credit profile exists on Arc Testnet for this human nullifier
+    // Report provisioning honestly rather than swallowing it. Verification can
+    // legitimately succeed while the chain write fails, and the caller needs to
+    // know it has no credit profile yet.
+    let profileProvisioned = true;
+    let profileError: string | undefined;
     try {
       await ensureHumanProfileOnChain(nullifierHash);
     } catch (profileErr: any) {
-      console.warn("[World-Verify] Notice provisioning on-chain profile:", profileErr.message || profileErr);
+      profileProvisioned = false;
+      profileError = profileErr?.message || String(profileErr);
+      console.warn("[World-Verify] Could not provision on-chain profile:", profileError);
     }
 
     return NextResponse.json({
       verified: true,
       nullifierHash,
       verificationLevel: "selfie",
+      profileProvisioned,
+      ...(profileError ? { profileError } : {}),
       message: "Human operator authenticated via World Selfie Check",
     });
   } catch (error: any) {

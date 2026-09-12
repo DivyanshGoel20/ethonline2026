@@ -68,6 +68,11 @@ contract FloatCreditFacility {
     mapping(uint256 => RepaymentRecord) public repayments;
     uint256 public nextRepaymentId = 1;
 
+    /// @notice One World ID nullifier maps to exactly one profile. Without this the
+    /// per-human exposure cap is unenforceable: a single human can open unlimited
+    /// profiles and each carries its own limit.
+    mapping(bytes32 => bytes32) public humanRootToProfile;
+
     // Events explicitly indexed for Subgraph / Substreams
     event CreditProfileCreated(bytes32 indexed profileId, address indexed humanOwner, bytes32 humanRoot, uint256 creditLimit);
     event CreditLimitUpdated(bytes32 indexed profileId, uint256 oldLimit, uint256 newLimit);
@@ -93,6 +98,7 @@ contract FloatCreditFacility {
         uint256 timestamp
     );
     event DefaultMarked(bytes32 indexed profileId, uint256 outstandingDebt, uint256 timestamp);
+    event Withdrawn(address indexed to, uint256 amount);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "FloatCreditFacility: not contract owner");
@@ -127,12 +133,21 @@ contract FloatCreditFacility {
         require(msg.sender == owner || msg.sender == humanOwner, "Unauthorized");
         require(profiles[profileId].createdAt == 0, "Profile already exists");
         require(humanOwner != address(0), "Invalid human owner");
+        require(humanToProfile[humanOwner] == bytes32(0), "Human already has a profile");
+        if (humanRoot != bytes32(0)) {
+            require(humanRootToProfile[humanRoot] == bytes32(0), "Human root already used");
+        }
+
+        // Anyone may register themselves, but only the underwriter may extend
+        // credit. A self-registered profile starts at a zero limit and stays
+        // there until setCreditLimit is called by the operator.
+        uint256 limit = msg.sender == owner ? initialCreditLimit : 0;
 
         profiles[profileId] = CreditProfile({
             profileId: profileId,
             humanOwner: humanOwner,
             humanRoot: humanRoot,
-            creditLimit: initialCreditLimit,
+            creditLimit: limit,
             outstandingDebt: 0,
             totalBorrowed: 0,
             totalRepaid: 0,
@@ -142,17 +157,18 @@ contract FloatCreditFacility {
 
         profileIds.push(profileId);
         humanToProfile[humanOwner] = profileId;
+        if (humanRoot != bytes32(0)) humanRootToProfile[humanRoot] = profileId;
 
-        emit CreditProfileCreated(profileId, humanOwner, humanRoot, initialCreditLimit);
+        emit CreditProfileCreated(profileId, humanOwner, humanRoot, limit);
     }
 
     /**
      * @notice Set or update the credit limit of a human profile.
      */
-    function setCreditLimit(bytes32 profileId, uint256 newLimit) external {
+    /// @dev Underwriter only. A borrower who can set their own limit is not a borrower.
+    function setCreditLimit(bytes32 profileId, uint256 newLimit) external onlyOwner {
         CreditProfile storage profile = profiles[profileId];
         require(profile.createdAt > 0, "Profile does not exist");
-        require(msg.sender == owner || msg.sender == profile.humanOwner, "Unauthorized");
 
         uint256 oldLimit = profile.creditLimit;
         profile.creditLimit = newLimit;
@@ -163,13 +179,25 @@ contract FloatCreditFacility {
     /**
      * @notice Update the operational status of a profile (Active, Suspended, Defaulted).
      */
-    function setProfileStatus(bytes32 profileId, ProfileStatus status) external {
+    /// @dev Underwriter only. Previously the profile owner could clear their own
+    /// default and resume borrowing.
+    function setProfileStatus(bytes32 profileId, ProfileStatus status) external onlyOwner {
         CreditProfile storage profile = profiles[profileId];
         require(profile.createdAt > 0, "Profile does not exist");
-        require(msg.sender == owner || msg.sender == profile.humanOwner, "Unauthorized");
 
         profile.status = status;
         emit ProfileStatusChanged(profileId, status);
+    }
+
+    /// @notice A human may always suspend their own profile - that direction is
+    /// self-limiting and needs no permission. Only the underwriter can re-activate.
+    function suspendOwnProfile(bytes32 profileId) external {
+        CreditProfile storage profile = profiles[profileId];
+        require(profile.createdAt > 0, "Profile does not exist");
+        require(msg.sender == profile.humanOwner, "Not the profile owner");
+
+        profile.status = ProfileStatus.Suspended;
+        emit ProfileStatusChanged(profileId, ProfileStatus.Suspended);
     }
 
     /**
@@ -262,16 +290,19 @@ contract FloatCreditFacility {
      *         Any authorized payer (agent or human) can repay debt.
      *         Excess repayment is not deducted from debt.
      */
+    /// @dev Underwriter only, and it moves no tokens - it books a repayment the
+    /// operator has already observed settle off-chain. Previously any address could
+    /// call this with payer = itself and clear anyone's debt for free.
+    /// For an on-chain repayment that actually transfers value, use repayWithToken.
     function recordRepayment(
         bytes32 profileId,
         address payer,
         address beneficiaryAgent,
         uint256 amount
-    ) external returns (uint256 actualRepaid, uint256 remainingDebt) {
+    ) external onlyOwner returns (uint256 actualRepaid, uint256 remainingDebt) {
         CreditProfile storage profile = profiles[profileId];
         require(profile.createdAt > 0, "Profile does not exist");
         require(profile.outstandingDebt > 0, "No outstanding debt to repay");
-        require(msg.sender == owner || msg.sender == profile.humanOwner || msg.sender == payer, "Unauthorized caller");
 
         actualRepaid = amount > profile.outstandingDebt ? profile.outstandingDebt : amount;
         profile.outstandingDebt -= actualRepaid;
@@ -314,12 +345,14 @@ contract FloatCreditFacility {
 
         actualRepaid = amount > profile.outstandingDebt ? profile.outstandingDebt : amount;
 
-        // Pull tokens from sender
-        require(usdc.transferFrom(msg.sender, address(this), actualRepaid), "USDC transferFrom failed");
-
+        // Effects before interactions: a reentrant token could otherwise repay the
+        // same debt twice. USDC is not reentrant, but the ordering should not depend
+        // on which token is configured.
         profile.outstandingDebt -= actualRepaid;
         profile.totalRepaid += actualRepaid;
         remainingDebt = profile.outstandingDebt;
+
+        require(usdc.transferFrom(msg.sender, address(this), actualRepaid), "USDC transferFrom failed");
 
         uint256 repId = nextRepaymentId++;
         repayments[repId] = RepaymentRecord({
@@ -352,6 +385,15 @@ contract FloatCreditFacility {
 
         profile.status = ProfileStatus.Defaulted;
         emit DefaultMarked(profileId, profile.outstandingDebt, block.timestamp);
+    }
+
+    /// @notice Withdraw repaid capital. Without this, every token repaid through
+    /// repayWithToken is permanently stranded in the contract.
+    function withdraw(address to, uint256 amount) external onlyOwner {
+        require(address(usdc) != address(0), "USDC token not configured");
+        require(to != address(0), "Invalid recipient");
+        require(usdc.transfer(to, amount), "USDC transfer failed");
+        emit Withdrawn(to, amount);
     }
 
     // View functions

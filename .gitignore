@@ -48,3 +48,5 @@ sponsor.md
 
 # Keystores & credentials
 *agent-keys.json
+# Foundry deps
+contracts/lib/

@@ -1,4 +1,5 @@
 import fs from "fs";
+import { writeJsonAtomic } from "./atomicWrite";
 import path from "path";
 import { CREDIT_TIERS, CreditTier } from "./reputationEngine";
 import { updateOnChainCreditLimit } from "./facilityContract";
@@ -51,7 +52,7 @@ export function saveAllReputationRecords(data: Record<string, HumanReputationDat
   try {
     ensureDirectoryExists();
     const primary = getReputationFilePath();
-    fs.writeFileSync(primary, JSON.stringify(data, null, 2), "utf8");
+    writeJsonAtomic(primary, data);
 
     // Also mirror to secondary path if running in next.js web workspace
     const altPath = primary.includes("web/data")
@@ -61,7 +62,7 @@ export function saveAllReputationRecords(data: Record<string, HumanReputationDat
       try {
         const altDir = path.dirname(altPath);
         if (!fs.existsSync(altDir)) fs.mkdirSync(altDir, { recursive: true });
-        fs.writeFileSync(altPath, JSON.stringify(data, null, 2), "utf8");
+        writeJsonAtomic(altPath, data);
       } catch {
         // ignore secondary mirror error
       }

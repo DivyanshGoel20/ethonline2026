@@ -1,4 +1,5 @@
 import fs from "fs";
+import { writeJsonAtomic } from "./atomicWrite";
 import path from "path";
 import { Agent } from "@/types";
 import { getHumanCreditTier } from "./reputationStore";
@@ -41,7 +42,7 @@ export function saveAllAgents(agents: Agent[]) {
   try {
     ensureDirectoryExists();
     const filePath = getAgentsFilePath();
-    fs.writeFileSync(filePath, JSON.stringify(agents, null, 2), "utf8");
+    writeJsonAtomic(filePath, agents);
   } catch (error) {
     console.error("[AgentStore] Error writing agents file:", error);
   }

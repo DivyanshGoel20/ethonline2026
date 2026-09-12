@@ -1,4 +1,5 @@
 import fs from "fs";
+import { writeJsonAtomic } from "./atomicWrite";
 import path from "path";
 import { Loan } from "@/types";
 import { calculateLoanAccrual } from "./reputationEngine";
@@ -42,7 +43,7 @@ export function saveAllLoans(loans: Loan[]) {
   try {
     ensureDirectoryExists();
     const primary = getLoansFilePath();
-    fs.writeFileSync(primary, JSON.stringify(loans, null, 2), "utf8");
+    writeJsonAtomic(primary, loans);
 
     // Also mirror to secondary path if in web workspace
     const altPath = primary.includes("web/data")
@@ -52,7 +53,7 @@ export function saveAllLoans(loans: Loan[]) {
       try {
         const altDir = path.dirname(altPath);
         if (!fs.existsSync(altDir)) fs.mkdirSync(altDir, { recursive: true });
-        fs.writeFileSync(altPath, JSON.stringify(loans, null, 2), "utf8");
+        writeJsonAtomic(altPath, loans);
       } catch {
         // ignore mirror error
       }
