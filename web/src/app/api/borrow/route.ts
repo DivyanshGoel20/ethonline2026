@@ -89,6 +89,8 @@ export async function POST(req: NextRequest) {
       humanOwner: agent.humanOwner,
       amountUsdc: borrowAmount,
       paymentReference: memo || "Manual Credit Draw on Arc Testnet",
+      // A draw the human asked for has to deliver the money, not just the debt.
+      disburse: true,
     });
     const arcTxHash = onChainResult.txHash;
 

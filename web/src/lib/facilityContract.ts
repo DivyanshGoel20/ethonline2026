@@ -11,6 +11,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { FLOAT_CREDIT_FACILITY_ADDRESS, ARC_TESTNET_CHAIN_ID } from "./arc";
 import { getAgentPrivateKey } from "./agentKeys";
+import { depositToAgentGateway } from "./disburse";
 
 export const arcTestnetChain = defineChain({
   id: ARC_TESTNET_CHAIN_ID,
@@ -339,7 +340,15 @@ export async function executeOnChainDrawdown(params: {
   humanOwner: string;
   amountUsdc: number;
   paymentReference: string;
-}): Promise<{ txHash: `0x${string}`; blockNumber: number }> {
+  /**
+   * Whether to hand the agent the money as well as book the debt.
+   *
+   * True for a draw the human asked for. False on the x402 path, where Float
+   * has already paid the seller directly and the drawdown is only the ledger
+   * entry for that payment - disbursing there would pay twice.
+   */
+  disburse?: boolean;
+}): Promise<{ txHash: `0x${string}`; blockNumber: number; depositTxHash?: string }> {
   const pk = (process.env.PRIVATE_KEY || process.env.FLOAT_FUNDING_PRIVATE_KEY) as `0x${string}`;
   if (!pk) throw new Error("Missing PRIVATE_KEY for on-chain Arc Testnet transaction");
 
@@ -407,9 +416,48 @@ export async function executeOnChainDrawdown(params: {
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 
+  // 4. Hand over the money.
+  //
+  // Deliberately after recordDrawdown: the contract is what enforces the credit
+  // limit, so it has to agree the draw is allowed before any funds move. If the
+  // disbursement then fails, the debt is unwound rather than left standing
+  // against a borrower who received nothing.
+  let depositTxHash: string | undefined;
+  if (params.disburse) {
+    try {
+      ({ depositTxHash } = await depositToAgentGateway(params.agentAddress, params.amountUsdc));
+    } catch (err: any) {
+      const reason = err?.shortMessage || err?.message || String(err);
+      console.error("[FacilityContract] Disbursement failed, unwinding drawdown:", reason);
+
+      try {
+        const unwind = await walletClient.writeContract({
+          address: FLOAT_CREDIT_FACILITY_ADDRESS,
+          abi: FLOAT_CREDIT_FACILITY_ABI,
+          functionName: "recordRepayment",
+          args: [
+            profileId,
+            params.agentAddress as `0x${string}`,
+            params.agentAddress as `0x${string}`,
+            amountUnits,
+          ],
+        });
+        await publicClient.waitForTransactionReceipt({ hash: unwind });
+        throw new Error(`Could not fund the agent, so the draw was reversed. ${reason}`);
+      } catch (unwindErr: any) {
+        // Both legs failed: say so loudly, with the tx to reconcile against.
+        throw new Error(
+          `Could not fund the agent AND could not reverse the drawdown ${txHash}. ` +
+            `The profile owes ${params.amountUsdc} USDC it never received. ${reason}`
+        );
+      }
+    }
+  }
+
   return {
     txHash,
     blockNumber: Number(receipt.blockNumber),
+    depositTxHash,
   };
 }
 

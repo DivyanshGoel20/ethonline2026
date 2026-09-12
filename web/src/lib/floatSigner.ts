@@ -336,6 +336,10 @@ export class FloatSignerTS {
           humanOwner,
           amountUsdc: shortfallAmount,
           paymentReference: `x402:${url}`,
+          // No disbursement here. Float settles with the seller directly a few
+          // lines below, so this drawdown is the ledger entry for that payment.
+          // Funding the agent as well would pay for the resource twice.
+          disburse: false,
         });
         arcTxHash = onChainResult.txHash;
       } catch (err: any) {
