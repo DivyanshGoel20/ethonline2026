@@ -43,7 +43,8 @@ function required(name: string): string {
   const v = process.env[name];
   if (!v || !v.trim()) {
     throw new Error(
-      `${name} is not set. Copy hedera/.env.example to .env and fill it in, then run: npm run hedera:setup`
+      `${name} is not set. Fill it in in .env (see hedera/.env.example for what each value is), ` +
+        `then run: npm run hedera:setup`
     );
   }
   return v.trim();
