@@ -19,22 +19,39 @@ export interface PaymentRecord {
   memo?: string;
 }
 
-const DATA_DIR = path.resolve(process.cwd(), "data");
-const PAYMENTS_FILE = path.join(DATA_DIR, "payments.json");
+/**
+ * Resolved per call rather than at import, because cwd differs by how the
+ * process was started: `next dev` runs from web/, a tsx script from the repo
+ * root. Pinning `process.cwd()/data` at module load split the ledger in two -
+ * payments written by the app and payments written by a script landed in
+ * different files. Every other store here already probes both candidates; this
+ * one did not.
+ */
+function getPaymentsFilePath(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "web", "data", "payments.json"),
+    path.resolve(process.cwd(), "data", "payments.json"),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return path.resolve(process.cwd(), "data", "payments.json");
+}
 
 function ensureDirectoryExists() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const dir = path.dirname(getPaymentsFilePath());
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
   }
 }
 
 export function getAllPayments(): PaymentRecord[] {
   try {
     ensureDirectoryExists();
-    if (!fs.existsSync(PAYMENTS_FILE)) {
+    if (!fs.existsSync(getPaymentsFilePath())) {
       return [];
     }
-    const content = fs.readFileSync(PAYMENTS_FILE, "utf8");
+    const content = fs.readFileSync(getPaymentsFilePath(), "utf8");
     return JSON.parse(content);
   } catch (error) {
     console.error("[PaymentStore] Error reading payments file:", error);
@@ -45,7 +62,7 @@ export function getAllPayments(): PaymentRecord[] {
 export function saveAllPayments(payments: PaymentRecord[]) {
   try {
     ensureDirectoryExists();
-    writeJsonAtomic(PAYMENTS_FILE, payments);
+    writeJsonAtomic(getPaymentsFilePath(), payments);
   } catch (error) {
     console.error("[PaymentStore] Error writing payments file:", error);
   }

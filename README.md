@@ -71,25 +71,35 @@ web/                Next.js app: dashboard, agent APIs, both rails
 hedera/             the Hedera rail — x402 service, payer, schedules, HCS
 float-premium-api/  x402 resources on Arc, priced $0.01 / $1 / $5
 agent-demo/         autonomous agent lifecycle runner
+scripts/            operator tools: fund the facility, read balances
+design/             the Waterline design system, as artboards
 ```
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env          # Arc, World, Circle
-cp hedera/.env.example .env   # or merge the Hedera block in
-npm run hedera:setup          # provisions Hedera accounts + HCS topic
+cp .env.example .env             # Arc, World, agent + session secrets
+cat hedera/.env.example >> .env  # append the Hedera block to the same file
+npm run hedera:setup             # provisions Hedera accounts + HCS topic
 ```
 
 Then run the pieces you need:
 
 ```bash
-npm run dev                                  # app on :3000
-cd float-premium-api && PORT=4402 npx tsx server.ts   # Arc x402 resources
-npm run hedera:service                       # Hedera x402 service on :4021
-npm run hedera:payer                         # Hedera payer API on :4023
-npm run hedera:announce                      # publish HCS-14 identities
+npm run dev               # app on :3000
+npm run premium           # Arc x402 resources on :4402
+npm run hedera:service    # Hedera x402 service on :4021
+npm run hedera:payer      # Hedera payer API on :4023
+npm run hedera:announce   # publish HCS-14 identities
+```
+
+Operator tools, once it is running:
+
+```bash
+npm run deposit           # fund the facility's Circle Gateway balance
+npm run balances          # read every Gateway balance Float cares about
+npm run hedera:reconcile  # close the books on repayments that already executed
 ```
 
 ## Integrations

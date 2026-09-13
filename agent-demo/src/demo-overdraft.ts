@@ -10,8 +10,10 @@
 
 import { FloatSignerTS } from "./floatSigner";
 
-const FLOAT_API_BASE = process.env.FLOAT_API_BASE || "http://localhost:3001";
-const PREMIUM_API_URL = process.env.PREMIUM_API_URL || "http://localhost:3000/premium-data";
+const FLOAT_API_BASE = process.env.FLOAT_API_BASE || "http://localhost:3000";
+// The x402 resource server, not the app. Started separately:
+//   cd float-premium-api && PORT=4402 npx tsx server.ts
+const PREMIUM_API_URL = process.env.PREMIUM_API_URL || "http://localhost:4402/premium-data";
 
 // Registered Agent in Float (Trial Agent)
 const AGENT_ADDRESS = "0x890663d91113b8fe99913bda4ee2647484a2591a";

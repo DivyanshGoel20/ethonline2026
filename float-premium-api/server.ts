@@ -20,7 +20,9 @@ const SELLER_WALLET =
   "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf";
 const FACILITATOR_URL =
   process.env.FACILITATOR_URL || "https://gateway-api-testnet.circle.com";
-const PORT = process.env.PORT || 3000;
+// Its own variable, not PORT: the Next app already owns 3000, and a shared
+// PORT in .env silently pointed both at the same socket.
+const PORT = process.env.PREMIUM_API_PORT || 4402;
 
 const gateway = createGatewayMiddleware({
   sellerAddress: SELLER_WALLET,

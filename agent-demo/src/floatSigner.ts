@@ -38,7 +38,7 @@ export class FloatSignerTS {
       options?.floatApiBase ||
       process.env.FLOAT_API_BASE ||
       process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3001";
+      "http://localhost:3000";
 
     this.fundingPrivateKey =
       options?.fundingPrivateKey ||
