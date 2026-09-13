@@ -4,12 +4,15 @@ import React, { useState, useEffect, useRef } from "react";
 import { ExternalLink, Copy, Check } from "lucide-react";
 import { Agent } from "@/types";
 import { Sheet, Field, Kv, Label, ErrorNote, short, usd } from "./ui";
+import type { Rail } from "@/lib/rails";
 
 interface X402PayModalProps {
   agent: Agent | null;
   isOpen: boolean;
   onClose: () => void;
   facilityAvailable?: number;
+  /** Which rail settles this payment. Arc keeps the debt ledger regardless. */
+  rail?: Rail;
   onPaymentSuccess?: (result: any) => void;
 }
 
@@ -33,6 +36,7 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
   isOpen,
   onClose,
   facilityAvailable,
+  rail = "arc",
   onPaymentSuccess,
 }) => {
   // The premium API is a separate Express service. Pointing this at the Next
@@ -46,6 +50,9 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
   const [result, setResult] = useState<any | null>(null);
   const [wallet, setWallet] = useState<string>("0.00");
   const [gateway, setGateway] = useState<string>("0.00");
+  const [catalogue, setCatalogue] = useState<
+    Array<{ path: string; price: number; title: string; artifact: string }>
+  >([]);
   const [copied, setCopied] = useState(false);
 
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -61,6 +68,16 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
     setError(null);
     setStep(0);
     clearTimers();
+
+    fetch(rail === "hedera" ? "/api/hedera/status" : "/api/x402/catalogue")
+      .then((r) => r.json())
+      .then((d) => {
+        const list = Array.isArray(d.resources) ? d.resources : [];
+        setCatalogue(list);
+        // Default to the cheapest thing on offer rather than a hardcoded path.
+        if (list.length && d.base) setUrl(`${String(d.base).replace(/\/$/, "")}${list[0].path}`);
+      })
+      .catch(() => setCatalogue([]));
 
     fetch(`/api/pay?agentAddress=${agent.address}`)
       .then((r) => r.json())
@@ -91,12 +108,16 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
     timers.current.push(setTimeout(() => setStep(3), 1100));
 
     try {
-      const res = await fetch("/api/pay", {
+      const res = await fetch(rail === "hedera" ? "/api/hedera/pay" : "/api/pay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // humanProfileId is deliberately absent: the route takes the human from
         // the World session, because naming one in the body meant billing them.
-        body: JSON.stringify({ url, agentAddress: agent.address }),
+        // The Hedera rail pays from its own configured identity, so it needs
+        // only the resource.
+        body: JSON.stringify(
+          rail === "hedera" ? { url } : { url, agentAddress: agent.address }
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
@@ -138,7 +159,11 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
         onClose();
       }}
       title="Pay a 402"
-      subtitle={`${agent.name} · ${short(agent.address)}`}
+      subtitle={
+        rail === "hedera"
+          ? "Hedera · Blocky402 · repayment parked on consensus"
+          : `${agent.name} · ${short(agent.address)} · Arc`
+      }
       width={620}
       footer={
         <>
@@ -193,6 +218,35 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
         </div>
       </div>
 
+      {catalogue.length > 0 && (
+        <div>
+          <Label className="mb-2.5">On sale</Label>
+          <div className="flex flex-wrap gap-2">
+            {catalogue.map((r) => {
+              const full = url.endsWith(r.path);
+              return (
+                <button
+                  key={r.path}
+                  onClick={() => setUrl(url.replace(/\/[^/]*$/, "") + r.path)}
+                  disabled={busy}
+                  className="btn"
+                  data-on={full}
+                  style={full ? { borderColor: "var(--ink)", color: "var(--ink)" } : undefined}
+                  title={`${r.title} \u00b7 ${r.artifact}`}
+                >
+                  {r.title} &middot; ${r.price.toFixed(2)}
+                </button>
+              );
+            })}
+          </div>
+          {catalogue.some((r) => r.price > available) && (
+            <div className="mn faint mt-2.5" style={{ fontSize: 9.5 }}>
+              anything above {usd(available)} will be refused by the facility
+            </div>
+          )}
+        </div>
+      )}
+
       <Field
         label="Resource"
         hint="Any endpoint that answers 402 with an x402 challenge."
@@ -207,6 +261,7 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
         />
       </Field>
 
+      {rail === "arc" && (
       <div className="panel-sunk flex">
         <div className="flex-1 px-4 py-3.5" style={{ borderRight: "1px solid var(--rule)" }}>
           <Label>Wallet</Label>
@@ -230,6 +285,15 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
           </div>
         </div>
       </div>
+      )}
+
+      {rail === "hedera" && (
+        <div className="note">
+          This rail pays from Float&rsquo;s Hedera identity and, when the agent is short,
+          parks a dated repayment on consensus before the money moves. Nobody has to be
+          online when it falls due.
+        </div>
+      )}
 
       {parseFloat(wallet) > 0 && parseFloat(gateway) <= 0 && (
         <div className="note note-warn" style={{ color: "var(--ink2)" }}>
@@ -275,7 +339,41 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
         })}
       </div>
 
-      {done && (
+      {done && rail === "hedera" && (
+        <div>
+          <Kv
+            k="Funded by"
+            v={result.fundedBy === "agent" ? "the agent itself" : "Float credit"}
+            tone={result.fundedBy === "agent" ? "ink" : "flare"}
+          />
+          <Kv k="Amount" v={`$${result.amount} USDC`} />
+          {result.scheduledRepayment && (
+            <>
+              <Kv k="Repayment due" v={result.scheduledRepayment.dueAt} tone="faint" />
+              <Kv
+                k="Parked on consensus"
+                v={
+                  <a className="link" href={result.links?.schedule ?? "#"} target="_blank" rel="noopener noreferrer">
+                    {result.scheduledRepayment.scheduleId} <ExternalLink className="w-3 h-3 inline" />
+                  </a>
+                }
+              />
+            </>
+          )}
+          {result.links?.transaction && (
+            <Kv
+              k="Settlement"
+              v={
+                <a className="link" href={result.links.transaction} target="_blank" rel="noopener noreferrer">
+                  view on HashScan <ExternalLink className="w-3 h-3 inline" />
+                </a>
+              }
+            />
+          )}
+        </div>
+      )}
+
+      {done && rail === "arc" && (
         <div>
           {txHash && (
             <Kv
@@ -312,14 +410,31 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
           )}
           <Kv k="Now owed" v={usd(result.agentDebt ?? 0.01)} tone="flare" />
 
-          {result.data !== undefined && (
+          {result.data?.artifact === "svg" && result.data?.svg ? (
+            <div className="mt-4">
+              <Label className="mb-2">{result.data.title || "What the payment bought"}</Label>
+              {/* Rendered through an img rather than injected as markup: the
+                  document comes from a resource server, and an <img> cannot run
+                  script even if the SVG carries any. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                alt={result.data.title || "Purchased artefact"}
+                src={`data:image/svg+xml;base64,${
+                  typeof window === "undefined"
+                    ? ""
+                    : window.btoa(unescape(encodeURIComponent(result.data.svg)))
+                }`}
+                style={{ width: "100%", border: "1px solid var(--rule)", display: "block" }}
+              />
+            </div>
+          ) : result.data !== undefined ? (
             <div className="mt-4">
               <Label className="mb-2">What the resource returned</Label>
               <pre className="code" style={{ maxHeight: 180, overflowY: "auto" }}>
                 {JSON.stringify(result.data, null, 2)}
               </pre>
             </div>
-          )}
+          ) : null}
         </div>
       )}
 

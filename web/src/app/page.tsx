@@ -20,12 +20,18 @@ import { LiveTransactionFeed } from "@/components/LiveTransactionFeed";
 import { ReputationTierCard } from "@/components/ReputationTierCard";
 import { Label, usd } from "@/components/ui";
 import { Agent, CreditStats as CreditStatsType } from "@/types";
+import type { Rail } from "@/lib/rails";
 
 export default function Dashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [query, setQuery] = useState("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [facilityLimit, setFacilityLimit] = useState(10);
+
+  // Which rail settles payments. A display preference, not identity - safe in
+  // localStorage, unlike the session it replaced.
+  const [rail, setRail] = useState<Rail>("arc");
+  const [hederaReady, setHederaReady] = useState(false);
 
   const [isWorldVerified, setIsWorldVerified] = useState(false);
   const [nullifierHash, setNullifierHash] = useState<string | null>(null);
@@ -86,6 +92,40 @@ export default function Dashboard() {
     }
     if (!res.ok || !data.success) throw new Error(data.error || "That did not settle.");
     return data;
+  };
+
+  // Offer the Hedera rail only when it is actually running, and never strand
+  // the UI on a rail that cannot be used.
+  useEffect(() => {
+    if (!isWorldVerified) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/hedera/status");
+        if (!res.ok) return;
+        const d = await res.json();
+        const ready = !!(d.configured && d.sellerUp);
+        if (cancelled) return;
+        setHederaReady(ready);
+        if (!ready) setRail("arc");
+        else {
+          const saved = localStorage.getItem("float_rail");
+          if (saved === "hedera") setRail("hedera");
+        }
+      } catch {
+        /* rail stays unavailable */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isWorldVerified]);
+
+  const chooseRail = (next: Rail) => {
+    setRail(next);
+    localStorage.setItem("float_rail", next);
   };
 
   // The session cookie is httpOnly, so who we are is a question for the server.
@@ -229,6 +269,9 @@ export default function Dashboard() {
         isWorldVerified={isWorldVerified}
         nullifierHash={nullifierHash}
         activeAgentsCount={agents.length}
+        rail={rail}
+        onRailChange={chooseRail}
+        hederaReady={hederaReady}
       />
 
       {toast && (
@@ -380,6 +423,7 @@ export default function Dashboard() {
         isOpen={!!payAgent}
         onClose={() => setPayAgent(null)}
         facilityAvailable={available}
+        rail={rail}
         onPaymentSuccess={(result) => {
           const borrowed = parseFloat(result.borrowed || "0.01");
           setAgents((prev) =>

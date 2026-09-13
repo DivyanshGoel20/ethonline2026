@@ -38,9 +38,25 @@ export type Receipt = {
   trail?: { transactionId: string; sequenceNumber: string }[];
 };
 
+/**
+ * The agent's per-payment ceiling.
+ *
+ * x402 defaults to $1, which is a sensible default for an autonomous buyer and
+ * too low to exercise Float: a charge has to be a real fraction of the credit
+ * line before the decision to lend is interesting. Raised rather than disabled,
+ * because an agent with no spending cap is the thing this product exists to
+ * make safe. $5 matches the largest resource on the Arc rail.
+ */
+const MAX_PER_PAYMENT = process.env.FLOAT_MAX_PER_PAYMENT || "$5.00";
+
 function payingFetch(as: Identity) {
   const signer = createClientHederaSigner(as.id, parseKey(as.key), { network: NETWORK });
-  const client = new x402Client().register("hedera:*", new ExactHederaScheme(signer));
+  // setSpendControls, not a constructor option: the constructor's only argument
+  // is a payment-requirements selector, so an options object there is accepted
+  // and ignored, leaving the $1 default silently in place.
+  const client = new x402Client()
+    .setSpendControls({ maxAmountPerPayment: MAX_PER_PAYMENT })
+    .register("hedera:*", new ExactHederaScheme(signer));
   return wrapFetchWithPayment(fetch, client);
 }
 

@@ -28,7 +28,14 @@ const PORT = Number(process.env.HEDERA_SERVICE_PORT || 4021);
 
 /** Per-record price. A one-record call costs this; a twenty-record call costs twenty times it. */
 const PRICE_PER_RECORD = 0.005;
-const MAX_RECORDS = 25;
+/**
+ * Raised from 25 so the meter can reach a price worth borrowing for.
+ *
+ * A ceiling of $0.125 could never exercise the interesting path: a charge that
+ * is a real fraction of a ten dollar line, where Float has to decide whether
+ * the headroom is there. At 400 records a single call quotes $2.00.
+ */
+const MAX_RECORDS = 400;
 
 /**
  * Reads the meter off the request.
