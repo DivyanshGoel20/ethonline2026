@@ -10,7 +10,7 @@ import { recordPayment, PaymentRecord } from "./paymentStore";
 import { FLOAT_CREDIT_FACILITY_ADDRESS } from "./arc";
 import { addPending } from "./pendingLedger";
 import { flushAgent } from "./ledgerFlush";
-import { getAgentPrivateKey } from "./agentKeys";
+import { getAgentPrivateKey, authorizeAgentSpend } from "./agentKeys";
 
 export interface AgentPaymentContext {
   agentAddress: string;
@@ -211,6 +211,16 @@ export class FloatSignerTS {
         throw new Error(
           `Agent ${agentContext.agentAddress} has sufficient Gateway balance ($${formattedAvailable} >= $${requestedAmountFormatted}), but no private key was found to sign the payment.`
         );
+      }
+
+      // The key is held on the agent's behalf under a ceiling and an expiry;
+      // both are checked before it is used, not only when it was registered.
+      const allowed = authorizeAgentSpend(
+        agentContext.agentAddress,
+        parseFloat(requestedAmountFormatted)
+      );
+      if (!allowed.ok) {
+        throw new Error(`Float will not sign for this agent: ${allowed.reason}`);
       }
 
       const paymentPayload = await (agentClient as any).batchScheme.createPaymentPayload(

@@ -106,9 +106,14 @@ export async function POST(req: NextRequest) {
 
     const formattedAddress = walletAddress.trim().toLowerCase() as `0x${string}`;
 
-    // If privateKey was provided, store it in agent keystore
+    // A key that does not belong to this agent is a hard failure, not a
+    // silently-ignored field: registering it would point Float at a wallet the
+    // operator did not name.
     if (privateKey && typeof privateKey === "string" && privateKey.trim()) {
-      setAgentPrivateKey(formattedAddress, privateKey.trim());
+      const stored = setAgentPrivateKey(formattedAddress, privateKey.trim());
+      if (!stored.ok) {
+        return NextResponse.json({ error: stored.error, code: "bad_signing_key" }, { status: 400 });
+      }
     }
 
     // AgentKit AgentBook verification on World Chain

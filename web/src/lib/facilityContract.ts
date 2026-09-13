@@ -10,7 +10,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { FLOAT_CREDIT_FACILITY_ADDRESS, ARC_TESTNET_CHAIN_ID } from "./arc";
-import { getAgentPrivateKey } from "./agentKeys";
+import { getAgentPrivateKey, authorizeAgentSpend } from "./agentKeys";
 import { depositToAgentGateway } from "./disburse";
 import { refHash } from "./paymentRef";
 
@@ -489,6 +489,11 @@ export async function executeOnChainRepayment(params: {
   const agentKey = getAgentPrivateKey(params.payerAddress);
 
   if (agentKey) {
+    const allowed = authorizeAgentSpend(params.payerAddress, params.amountUsdc);
+    if (!allowed.ok) {
+      throw new Error(`Float will not move funds from this agent: ${allowed.reason}`);
+    }
+
     try {
       const agentAccount = privateKeyToAccount(agentKey);
       const publicClient = getPublicClient();

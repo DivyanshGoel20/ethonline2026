@@ -117,7 +117,15 @@ export const AddAgentModal: React.FC<AddAgentModalProps> = ({
 
         <Field
           label="Signing key (optional)"
-          hint="Lets the agent sign its own x402 payments and Arc transactions without you."
+          hint={
+            <>
+              Lets the agent pay its own x402 charges and settle from its own wallet. Must be the
+              key for the address above &mdash; a key for any other wallet is refused. Stored
+              encrypted, capped at $5.00 a payment, and expires in 30 days.
+              <br />
+              Leave it blank and Float signs instead; the agent still draws on your line.
+            </>
+          }
         >
           <input
             type="password"
