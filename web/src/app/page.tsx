@@ -18,6 +18,7 @@ import { WorldAuthGate } from "@/components/WorldAuthGate";
 import { SmartContractTelemetry } from "@/components/SmartContractTelemetry";
 import { LiveTransactionFeed } from "@/components/LiveTransactionFeed";
 import { ReputationTierCard } from "@/components/ReputationTierCard";
+import { HederaObligations } from "@/components/HederaObligations";
 import { Label, usd } from "@/components/ui";
 import { Agent, CreditStats as CreditStatsType } from "@/types";
 import type { Rail } from "@/lib/rails";
@@ -358,6 +359,8 @@ export default function Dashboard() {
             )}
           </div>
         </section>
+
+        <HederaObligations refreshTrigger={refreshTrigger} />
 
         <LiveTransactionFeed humanOwner={nullifierHash} refreshTrigger={refreshTrigger} />
 

@@ -21,7 +21,7 @@ import { x402Client } from "@x402/core/client";
 import { createClientHederaSigner } from "@x402/hedera";
 import { ExactHederaScheme } from "@x402/hedera/exact/client";
 
-import { NETWORK, agent, fromUnits, operator, optionalTopicId, parseKey, type Identity } from "../src/config";
+import { NETWORK, agent, borrower, fromUnits, operator, optionalTopicId, parseKey, type Identity } from "../src/config";
 import { usdcBalance } from "../src/mirror";
 import { scheduleRepayment, type ScheduledRepayment } from "../src/scheduled";
 import { append } from "../src/hcs";
@@ -111,13 +111,10 @@ export async function payForResource(url: string): Promise<Receipt> {
 
   if (!canSelfFund) {
     // The borrower commits to repayment before Float is out of pocket.
-    const borrower: Identity = {
-      id: process.env.HEDERA_BORROWER_ID || float.id,
-      key: process.env.HEDERA_BORROWER_KEY || float.key,
-    };
+    const who = borrower();
 
     scheduled = await scheduleRepayment({
-      borrower,
+      borrower: who,
       amount: fromUnits(price),
       dueInSeconds: TERM_SECONDS,
       memo: `Float drawdown for ${new URL(url).pathname}`,
@@ -131,7 +128,7 @@ export async function payForResource(url: string): Promise<Receipt> {
           await append(topic, {
             kind: "drawdown",
             agent: buyer.id,
-            human: borrower.id,
+            human: who.id,
             amount: fromUnits(price),
             scheduleId: scheduled.scheduleId,
             dueAt: scheduled.dueAt,

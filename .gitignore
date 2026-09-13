@@ -50,3 +50,6 @@ sponsor.md
 *agent-keys.json
 # Foundry deps
 contracts/lib/
+
+# Local index of parked Hedera repayments
+hedera/data/

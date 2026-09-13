@@ -68,6 +68,17 @@ export const agent = (): Identity => ({
   key: required("HEDERA_AGENT_KEY"),
 });
 
+/**
+ * The human on the hook. Falls back to Float's own account so a demo runs
+ * without a separate borrower, which is also why nothing here is a claim about
+ * consent: in a real deployment this key belongs to the borrower and Float
+ * never sees it.
+ */
+export const borrower = (): Identity => ({
+  id: process.env.HEDERA_BORROWER_ID?.trim() || required("HEDERA_OPERATOR_ID"),
+  key: process.env.HEDERA_BORROWER_KEY?.trim() || required("HEDERA_OPERATOR_KEY"),
+});
+
 /** The x402-gated service's payee. Provisioned by scripts/setup.ts. */
 export const seller = (): Identity => ({
   id: required("HEDERA_SELLER_ID"),

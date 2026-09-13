@@ -16,7 +16,17 @@
  */
 import express from "express";
 import { payForResource } from "../agent/payer";
-import { agent, hashscanAccount, hashscanSchedule, hashscanTx } from "../src/config";
+import { settleEarly } from "../src/scheduled";
+import { append } from "../src/hcs";
+import { liveRepayments, findParked, markSettled, recordParked } from "./scheduleStore";
+import {
+  agent,
+  borrower,
+  optionalTopicId,
+  hashscanAccount,
+  hashscanSchedule,
+  hashscanTx,
+} from "../src/config";
 
 const PORT = Number(process.env.HEDERA_PAYER_PORT || 4023);
 const SERVICE = process.env.HEDERA_SERVICE_URL || "http://localhost:4021";
@@ -65,6 +75,20 @@ app.post("/pay", async (req, res) => {
 
   try {
     const receipt = await payForResource(url);
+
+    // Index the obligation so it can be found and cancelled later. Without
+    // this the schedule id exists only in a log line, and settling early is
+    // impossible - the cheque stays parked and fires anyway.
+    if (receipt.scheduledRepayment) {
+      recordParked({
+        scheduleId: receipt.scheduledRepayment.scheduleId,
+        borrowerId: process.env.HEDERA_BORROWER_ID || "",
+        amountUsd: Number(receipt.scheduledRepayment.amount),
+        dueAt: receipt.scheduledRepayment.dueAt,
+        resource: url,
+      });
+    }
+
     res.json({
       success: true,
       ...receipt,
@@ -78,6 +102,72 @@ app.post("/pay", async (req, res) => {
   } catch (err: any) {
     console.error("[HederaPayer]", err?.message || err);
     res.status(400).json({ success: false, error: err?.message || "Payment failed" });
+  }
+});
+
+/** Obligations currently parked on consensus. */
+app.get("/schedules", (_req, res) => {
+  const rows = liveRepayments();
+  res.json({
+    schedules: rows.map((r) => ({
+      ...r,
+      link: hashscanSchedule(r.scheduleId),
+      dueInMs: new Date(r.dueAt).getTime() - Date.now(),
+    })),
+    totalUsd: rows.reduce((n, r) => n + r.amountUsd, 0),
+  });
+});
+
+/**
+ * Settle a parked repayment now instead of on its date.
+ *
+ * Paying early used to mean paying twice: nothing cancelled the schedule, so it
+ * fired regardless and took the money a second time. The transfer runs first
+ * and the schedule is deleted only once it has landed - the other order would
+ * discharge a debt that was never collected.
+ */
+app.post("/repay", async (req, res) => {
+  const scheduleId = String(req.body?.scheduleId || "");
+  const parked = scheduleId ? findParked(scheduleId) : undefined;
+
+  if (!parked) return res.status(404).json({ success: false, error: "No such parked repayment." });
+  if (parked.status !== "live") {
+    return res.status(409).json({ success: false, error: `Already ${parked.status}.` });
+  }
+
+  try {
+    const result = await settleEarly({
+      borrower: borrower(),
+      amount: parked.amountUsd.toFixed(6),
+      scheduleId,
+    });
+
+    markSettled(scheduleId, "settled", result.transactionId);
+
+    const topic = optionalTopicId();
+    if (topic) {
+      try {
+        await append(topic, {
+          kind: "repayment",
+          human: parked.borrowerId,
+          amount: parked.amountUsd.toFixed(6),
+          scheduleId,
+          transactionId: result.transactionId,
+        });
+      } catch {
+        // The trail is an audit record; a failed write must not undo a payment.
+      }
+    }
+
+    res.json({
+      success: true,
+      ...result,
+      amountUsd: parked.amountUsd,
+      links: { transaction: hashscanTx(result.transactionId) },
+    });
+  } catch (err: any) {
+    console.error("[HederaPayer] early repayment:", err?.message || err);
+    res.status(400).json({ success: false, error: err?.message || "Early repayment failed" });
   }
 });
 

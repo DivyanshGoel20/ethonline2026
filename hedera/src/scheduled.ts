@@ -19,6 +19,7 @@
 import {
   Hbar,
   ScheduleCreateTransaction,
+  ScheduleDeleteTransaction,
   ScheduleInfoQuery,
   ScheduleSignTransaction,
   Timestamp,
@@ -101,6 +102,72 @@ export async function scheduleRepayment(params: {
       dueAt: dueAt.toISOString(),
       amount,
     };
+  } finally {
+    client.close();
+  }
+}
+
+/**
+ * Settle a parked repayment early, and tear up the cheque.
+ *
+ * Without this, paying early means paying twice. The schedule does not care
+ * that the debt is gone - it fires on its date and takes the money again, and
+ * the borrower has no way to stop it: Float holds the admin key, not them.
+ *
+ * Order matters. The transfer goes first, so a failure leaves the obligation
+ * standing rather than deleting it and hoping. Deleting first and failing to
+ * collect would discharge a debt that was never paid.
+ */
+export async function settleEarly(params: {
+  borrower: Identity;
+  amount: string;
+  scheduleId: string;
+  treasury?: string;
+}): Promise<{ transactionId: string; scheduleDeleted: boolean }> {
+  const float = operator();
+  const treasury = params.treasury || float.id;
+  const units = toUnits(params.amount);
+
+  const client = clientFor(params.borrower);
+  let transactionId: string;
+  try {
+    const transfer = await new TransferTransaction()
+      .addTokenTransfer(USDC, params.borrower.id, -Number(units))
+      .addTokenTransfer(USDC, treasury, Number(units))
+      .setTransactionMemo(`Float early repayment of ${params.amount} USDC`)
+      .execute(client);
+
+    await transfer.getReceipt(client);
+    transactionId = transfer.transactionId.toString();
+  } finally {
+    client.close();
+  }
+
+  return { transactionId, scheduleDeleted: await cancelRepayment(params.scheduleId) };
+}
+
+/**
+ * Deletes a parked repayment.
+ *
+ * Only the admin key can do this, and Float holds it - which is the asymmetry
+ * that makes settling early Float's responsibility rather than the borrower's
+ * option. A schedule that has already executed or expired is gone from state
+ * and cannot be deleted; that is reported rather than thrown.
+ */
+export async function cancelRepayment(scheduleId: string): Promise<boolean> {
+  const float = operator();
+  const client = clientFor(float);
+  try {
+    await new ScheduleDeleteTransaction()
+      .setScheduleId(scheduleId)
+      .freezeWith(client)
+      .sign(parseKey(float.key))
+      .then((signed) => signed.execute(client))
+      .then((r) => r.getReceipt(client));
+    return true;
+  } catch (err: any) {
+    console.warn(`[Scheduled] Could not delete ${scheduleId}: ${err?.message || err}`);
+    return false;
   } finally {
     client.close();
   }
