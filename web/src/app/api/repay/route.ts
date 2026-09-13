@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwnedAgent } from "@/lib/session";
+import { resolveSpender } from "@/lib/agentToken";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 import { flushAgent } from "@/lib/ledgerFlush";
 import { RepayRequest, RepayResponse } from "@/types";
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Verify Paying Agent
     // Gated so one human cannot write entries into another's ledger.
-    const auth = requireOwnedAgent(req, agentAddress);
+    const auth = resolveSpender(req, agentAddress);
     if ("error" in auth) return auth.error;
 
     const payingAgent = getAgentByAddress(agentAddress);

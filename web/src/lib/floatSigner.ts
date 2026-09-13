@@ -16,6 +16,12 @@ export interface AgentPaymentContext {
   agentAddress: string;
   agentPrivateKey?: `0x${string}`;
   humanProfileId?: string;
+  /**
+   * Ceiling set by an agent's mandate, when the caller holds one rather than a
+   * browser session. Folded into the headroom below, so the tightest of the
+   * three - agent limit, facility headroom, mandate cap - is what binds.
+   */
+  maxCreditUsd?: number;
 }
 
 export interface FloatPayResult {
@@ -308,7 +314,8 @@ export class FloatSignerTS {
         : facility.totalAvailableCredit;
       const effectiveAvailable = Math.min(
         agentAvailableLimit,
-        facility.totalAvailableCredit
+        facility.totalAvailableCredit,
+        agentContext.maxCreditUsd ?? Number.POSITIVE_INFINITY
       );
 
       if (shortfallAmount > effectiveAvailable) {

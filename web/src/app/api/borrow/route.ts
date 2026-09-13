@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireOwnedAgent } from "@/lib/session";
+import { overMandate, resolveSpender } from "@/lib/agentToken";
 import { BorrowRequest, BorrowResponse } from "@/types";
 import {
   getAgentByAddress,
@@ -42,8 +42,15 @@ export async function POST(req: NextRequest) {
     // Drawing on a credit line is the human's call, not anyone who knows an
     // agent address. This is the same hole as /api/pay, reachable by a
     // different door.
-    const auth = requireOwnedAgent(req, agentAddress);
+    const auth = resolveSpender(req, agentAddress);
     if ("error" in auth) return auth.error;
+
+    // A mandate caps what an agent may draw. A human here in person is bounded
+    // only by their facility limit, which the contract enforces anyway.
+    const { capUsd } = auth.spender;
+    if (capUsd !== undefined && borrowAmount > capUsd) {
+      return overMandate(borrowAmount, capUsd);
+    }
 
     // 1. Check Agent in Store
     const agent = getAgentByAddress(agentAddress);

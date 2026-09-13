@@ -226,6 +226,37 @@ npm run float:fetch -- --records 3                      # spend it
 Verified: a forged signature and an expired token are both refused, the cap
 binds independently of headroom, and the debt lands on the issuing human.
 
+### The mandate works on both rails
+
+A card that only worked on one rail would make "one credit line" true only if you
+never used the other half of it. `resolveSpender` sits under Arc's pay, borrow,
+repay and sign routes as well, so the same token spends on either:
+
+```
+POST /api/borrow   no auth                      -> 401
+POST /api/borrow   mandate 0.50, borrow 0.01    -> 200, real Arc tx
+POST /api/borrow   mandate 0.004, borrow 0.01   -> 403, over mandate
+```
+
+Where the price is known up front (`/api/borrow`) the cap is checked directly;
+on `/api/pay` it is not known until the resource answers with a 402, so the cap
+travels into the signer and folds into the headroom it already applies — the
+tightest of agent limit, facility headroom and mandate cap binds.
+
+Spending and administering are deliberately separate. A browser session is the
+human present in person and can register agents or issue mandates; a mandate is
+a card and can only spend:
+
+```
+POST /api/agents       with a mandate -> 401
+POST /api/agent-token  with a mandate -> 401
+```
+
+Without that split, a leaked token could mint itself a larger one.
+
+Both rails net against one limit. After an Arc drawdown and a Hedera one against
+a 10 USDC line: 5.03 drawn on Arc, 0.04 on Hedera, 4.93 left to either.
+
 ### What a default actually looks like
 
 The agent also asked what happens at maturity if the borrower cannot pay, which

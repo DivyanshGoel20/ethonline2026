@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FloatSignerTS } from "@/lib/floatSigner";
 import { getAgentPrivateKey } from "@/lib/agentKeys";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
-import { requireOwnedAgent } from "@/lib/session";
+import { resolveSpender } from "@/lib/agentToken";
 import { getAgentWalletUsdc } from "@/lib/walletBalance";
 
 export async function POST(req: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     // and have Float's funding wallet pay an address they controlled. The payer
     // is now whoever holds a World session, and they may only spend through
     // their own agents.
-    const auth = requireOwnedAgent(req, agentAddress);
+    const auth = resolveSpender(req, agentAddress);
     if ("error" in auth) return auth.error;
 
     // Server-custodied keys only. A key supplied in the request body was never
@@ -44,7 +44,10 @@ export async function POST(req: NextRequest) {
       {
         agentAddress,
         agentPrivateKey: effectiveAgentKey,
-        humanProfileId: auth.human,
+        humanProfileId: auth.spender.human,
+        // The price is only known once the resource answers with a 402, so the
+        // ceiling goes in with the request rather than being checked up front.
+        maxCreditUsd: auth.spender.capUsd,
       },
       {
         method: method || "GET",
@@ -52,7 +55,7 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    invalidateTelemetryCache(auth.human);
+    invalidateTelemetryCache(auth.spender.human);
 
     return NextResponse.json(result);
   } catch (error: any) {
@@ -80,7 +83,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const auth = requireOwnedAgent(req, agentAddress);
+    const auth = resolveSpender(req, agentAddress);
     if ("error" in auth) return auth.error;
 
     const floatSigner = new FloatSignerTS();

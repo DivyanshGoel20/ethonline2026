@@ -7,7 +7,7 @@ import {
 } from "@/lib/agentKeys";
 import { getPublicClient, arcTestnetChain, FLOAT_CREDIT_FACILITY_ABI } from "@/lib/facilityContract";
 import { FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
-import { requireOwnedAgent } from "@/lib/session";
+import { resolveSpender } from "@/lib/agentToken";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const auth = requireOwnedAgent(req, address);
+    const auth = resolveSpender(req, address);
     if ("error" in auth) return auth.error;
 
     const isAutonomous = hasAgentPrivateKey(address);
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     // This endpoint signs arbitrary text with a custodied key. Unauthenticated,
     // an agent address - which the dashboard used to publish - was the only
     // thing standing between an attacker and a signature from that key.
-    const auth = requireOwnedAgent(req, agentAddress);
+    const auth = resolveSpender(req, agentAddress);
     if ("error" in auth) return auth.error;
 
     const account = getAgentAccount(agentAddress);

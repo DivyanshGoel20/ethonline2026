@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
-import { signPayload } from "./session";
+import { NextRequest, NextResponse } from "next/server";
+import { getHuman, signPayload, unauthenticated } from "./session";
+import { getAgentByAddress } from "./agentStore";
 
 /**
  * A credential a human issues to their own agent.
@@ -95,3 +97,82 @@ export function verifyAgentToken(token: string | undefined | null): AgentGrant |
 /** Pulls a bearer token out of an Authorization header. */
 export const bearerFrom = (header: string | null): string | null =>
   header && /^Bearer\s+/i.test(header) ? header.replace(/^Bearer\s+/i, "").trim() : null;
+
+
+export type Spender = {
+  /** The World-verified human whose credit line is being spent. */
+  human: string;
+  /**
+   * Ceiling on this caller's borrowing, when they hold a mandate rather than a
+   * browser session. Undefined means the human is here themselves and only
+   * their facility limit applies.
+   */
+  capUsd?: number;
+  via: "session" | "mandate";
+};
+
+/**
+ * Who is spending, and are they allowed to spend through this agent.
+ *
+ * Deliberately separate from the administrative path. A browser session is the
+ * human present in person and can do anything - register agents, delete them,
+ * issue new mandates. A mandate is a card: it authorises spending against one
+ * line up to one cap, and nothing else. Were the two conflated, a leaked token
+ * would be able to mint itself a larger one.
+ *
+ * Both rails funnel through here, so a mandate works the same on Arc as it does
+ * on Hedera. Previously it worked on neither until the Hedera route learned to
+ * read it, which made "one credit line" true only if you never used the other
+ * half of it.
+ */
+export function resolveSpender(
+  req: NextRequest,
+  agentAddress: string
+): { spender: Spender } | { error: NextResponse } {
+  const grant = verifyAgentToken(bearerFrom(req.headers.get("authorization")));
+  const sessionHuman = getHuman(req);
+
+  const spender: Spender | null = sessionHuman
+    ? { human: sessionHuman, via: "session" }
+    : grant
+      ? { human: grant.human, capUsd: grant.capUsd, via: "mandate" }
+      : null;
+
+  if (!spender) return { error: unauthenticated() };
+
+  const agent = getAgentByAddress(agentAddress);
+  if (!agent) {
+    return {
+      error: NextResponse.json(
+        { error: "No such agent in the Float registry.", code: "unknown_agent" },
+        { status: 404 }
+      ),
+    };
+  }
+
+  // A mandate is scoped to the human who issued it, not to the world. Spending
+  // through someone else's agent is refused however you arrived.
+  if ((agent.humanOwner || "").toLowerCase() !== spender.human.toLowerCase()) {
+    return {
+      error: NextResponse.json(
+        { error: "That agent belongs to a different human.", code: "not_your_agent" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { spender };
+}
+
+/** Refusal for a drawdown that would exceed the caller's mandate. */
+export const overMandate = (wanted: number, cap: number) =>
+  NextResponse.json(
+    {
+      success: false,
+      error:
+        `Declined: ${wanted.toFixed(6)} USDC exceeds the ${cap.toFixed(6)} USDC cap on this ` +
+        `agent's mandate. Your human can issue a larger one.`,
+      code: "over_mandate",
+    },
+    { status: 403 }
+  );
