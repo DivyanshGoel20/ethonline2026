@@ -23,7 +23,9 @@
     "float:fetch": "tsx --env-file=.env hedera/agent/cli.ts",
     "float:mcp": "tsx --env-file=.env hedera/mcp/server.ts",
     "hedera:probe-default": "tsx --env-file=.env hedera/scripts/probe-default.ts",
-    "hedera:issue-token": "tsx --env-file=.env hedera/scripts/issue-token.ts"
+    "hedera:issue-token": "tsx --env-file=.env hedera/scripts/issue-token.ts",
+    "hedera:reconcile": "tsx --env-file=.env hedera/scripts/reconcile.ts",
+    "hedera:new-agent": "tsx --env-file=.env hedera/scripts/new-agent.ts"
   },
   "keywords": [
     "ai-agents",

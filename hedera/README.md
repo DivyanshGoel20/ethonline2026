@@ -257,6 +257,36 @@ Without that split, a leaked token could mint itself a larger one.
 Both rails net against one limit. After an Arc drawdown and a Hedera one against
 a 10 USDC line: 5.03 drawn on Arc, 0.04 on Hedera, 4.93 left to either.
 
+### Closing the books after the network moves
+
+A parked repayment executes unattended - which is the point, and also why
+nothing in Float noticed when it did. A debt consensus collected a week ago
+still read as outstanding and went on consuming the human's line; repaying early
+was the only way the books ever closed.
+
+`reconcileRailDebt` asks the Mirror Node what became of each parked repayment
+and writes it down. The distinction that matters is that **a schedule which
+fails is still stamped executed**, so asking only "did it execute" reports a
+default as a repayment. The consensus result behind the execution is read too:
+
+```
+  checked      6 parked repayment(s)
+  settled      1
+    0.0.10521924  0.005 USDC  headroom returned
+  defaulted    1
+    0.0.10521952  0.01 USDC  INSUFFICIENT_TOKEN_BALANCE - still owed
+  not yet due  4
+```
+
+Rail debt went 0.055 → 0.05 across that run: only the settled 0.005 came back.
+**A default keeps consuming the line**, because a default that freed up headroom
+would make failing to pay the cheapest way to borrow again.
+
+Running it twice is a no-op, and a mirror that cannot answer leaves the debt
+open rather than guessing. `POST /api/hedera/reconcile` does one human;
+`npm run hedera:reconcile` sweeps everyone, for a cron. Both are session-only —
+a spending mandate can spend, not declare its own debts paid.
+
 ### What a default actually looks like
 
 The agent also asked what happens at maturity if the borrower cannot pay, which

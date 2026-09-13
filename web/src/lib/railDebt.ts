@@ -24,7 +24,15 @@ export interface RailDebt {
   scheduleId?: string;
   resource: string;
   createdAt: number;
-  status: "open" | "settled";
+  /**
+   * open      - parked, not yet due
+   * settled   - collected, headroom returned
+   * defaulted - the schedule ran and moved nothing; still owed, still consuming
+   *             the line. A default must never be cheaper than repaying.
+   */
+  status: "open" | "settled" | "defaulted";
+  defaultedAt?: number;
+  defaultReason?: string;
   settledAt?: number;
 }
 
@@ -66,8 +74,14 @@ export function openRailDebt(entry: Omit<RailDebt, "id" | "createdAt" | "status"
 /** What this human owes on other rails, counted against the same limit. */
 export function railDebtTotal(humanOwner: string): number {
   if (!humanOwner) return 0;
+  // Defaulted debt still counts. It was never repaid, so freeing the headroom
+  // would make failing to pay the cheapest way to borrow again.
   const total = readAll()
-    .filter((r) => r.status === "open" && r.humanOwner.toLowerCase() === humanOwner.toLowerCase())
+    .filter(
+      (r) =>
+        (r.status === "open" || r.status === "defaulted") &&
+        r.humanOwner.toLowerCase() === humanOwner.toLowerCase()
+    )
     .reduce((n, r) => n + r.amountUsd, 0);
   return Math.round(total * 10000) / 10000;
 }
@@ -87,4 +101,26 @@ export function settleRailDebtBySchedule(scheduleId: string): RailDebt | null {
   row.settledAt = Date.now();
   writeAll(all);
   return row;
+}
+
+/** The schedule ran and collected nothing. The debt stands. */
+export function markRailDebtDefaulted(scheduleId: string, reason: string): RailDebt | null {
+  const all = readAll();
+  const row = all.find((r) => r.scheduleId === scheduleId && r.status === "open");
+  if (!row) return null;
+  row.status = "defaulted";
+  row.defaultedAt = Date.now();
+  row.defaultReason = reason;
+  writeAll(all);
+  return row;
+}
+
+/** Every open debt with a parked repayment, for reconciliation. */
+export function reconcilableDebts(humanOwner?: string): RailDebt[] {
+  return readAll().filter(
+    (r) =>
+      r.status === "open" &&
+      !!r.scheduleId &&
+      (!humanOwner || r.humanOwner.toLowerCase() === humanOwner.toLowerCase())
+  );
 }
