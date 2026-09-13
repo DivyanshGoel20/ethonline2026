@@ -74,7 +74,12 @@ export async function POST(req: NextRequest) {
         humanOwner: human,
         rail: "hedera",
         amountUsd: Number(data.amount) || 0,
-        scheduleId: data.scheduledRepayment?.scheduleId,
+        // A batched draw parks a tranche rather than its own schedule, so the
+        // id lives somewhere else on the receipt. Missing it here would leave
+        // the debt with nothing to point at, and the schedules view - which
+        // matches on this id to decide whose obligation is whose - would hide
+        // the borrower's own repayment from them.
+        scheduleId: data.scheduledRepayment?.scheduleId ?? data.tranche?.scheduleId,
         resource: url,
       });
       invalidateTelemetryCache(human);
