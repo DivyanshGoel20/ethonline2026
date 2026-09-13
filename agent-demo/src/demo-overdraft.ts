@@ -128,7 +128,12 @@ async function runDemo() {
   try {
     const repayRes = await fetch(`${FLOAT_API_BASE}/api/repay`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.FLOAT_AGENT_TOKEN
+          ? { Authorization: `Bearer ${process.env.FLOAT_AGENT_TOKEN}` }
+          : {}),
+      },
       body: JSON.stringify({
         agentAddress: AGENT_ADDRESS,
         amount: drawdownAmount,

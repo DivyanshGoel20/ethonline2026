@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentByAddress, getHumanFacilityStats } from "@/lib/agentStore";
+import { resolveAgentReader } from "@/lib/agentToken";
 import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
 
 export async function GET(req: NextRequest) {
@@ -19,6 +20,12 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // The address is on chain, so it is not a secret and cannot be the
+    // authorisation. A session or a mandate says who is asking; the agent has
+    // to be theirs.
+    const asked = resolveAgentReader(req, agentAddress);
+    if ("error" in asked) return asked.error;
 
     const agent = getAgentByAddress(agentAddress);
     if (!agent) {

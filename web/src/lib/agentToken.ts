@@ -164,6 +164,63 @@ export function resolveSpender(
   return { spender };
 }
 
+/**
+ * Who is asking, on a route that only reads.
+ *
+ * The spending path needs an agent to spend through; a read does not, so this
+ * answers the smaller question: is anyone here, and which human are they. The
+ * answer replaces the identifier these routes used to take off the query
+ * string - `?humanOwner=` and `?human=` named whose ledger to return and were
+ * believed, so a nullifier was the only thing standing between a stranger and
+ * someone's entire payment history.
+ *
+ * A mandate can read what it can spend against. It cannot name a different
+ * human, because the human it reports is the one signed into the token.
+ */
+export function resolveReader(req: NextRequest): Spender | null {
+  const sessionHuman = getHuman(req);
+  if (sessionHuman) return { human: sessionHuman, via: "session" };
+
+  const grant = verifyAgentToken(bearerFrom(req.headers.get("authorization")));
+  return grant ? { human: grant.human, capUsd: grant.capUsd, via: "mandate" } : null;
+}
+
+/**
+ * The reader, plus confirmation that this agent is theirs to look at.
+ *
+ * Agent-scoped reads took an address and answered for whoever owned it. The
+ * address is public - it is on chain - so that made every agent's credit,
+ * loans and balance readable by anyone who had seen one transaction.
+ */
+export function resolveAgentReader(
+  req: NextRequest,
+  agentAddress: string
+): { spender: Spender } | { error: NextResponse } {
+  const spender = resolveReader(req);
+  if (!spender) return { error: unauthenticated() };
+
+  const agent = getAgentByAddress(agentAddress);
+  if (!agent) {
+    return {
+      error: NextResponse.json(
+        { error: "No such agent in the Float registry.", code: "unknown_agent" },
+        { status: 404 }
+      ),
+    };
+  }
+
+  if ((agent.humanOwner || "").toLowerCase() !== spender.human.toLowerCase()) {
+    return {
+      error: NextResponse.json(
+        { error: "That agent belongs to a different human.", code: "not_your_agent" },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { spender };
+}
+
 /** Refusal for a drawdown that would exceed the caller's mandate. */
 export const overMandate = (wanted: number, cap: number) =>
   NextResponse.json(

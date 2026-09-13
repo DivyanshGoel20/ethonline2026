@@ -4,14 +4,21 @@ import { getAllAgents } from "@/lib/agentStore";
 import { getAllLoans } from "@/lib/loanStore";
 import { getCachedTelemetry, setCachedTelemetry } from "@/lib/telemetryCache";
 import { getPending } from "@/lib/pendingLedger";
+import { resolveReader } from "@/lib/agentToken";
+import { unauthenticated } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const humanOwner = searchParams.get("human") || undefined;
-    const cacheKey = (humanOwner || "global").toLowerCase();
+    // `?human=` was believed. The dashboard passes its own nullifier and holds
+    // the cookie anyway, so taking it from the session costs the caller nothing
+    // and stops it naming someone else's facility.
+    const reader = resolveReader(req);
+    if (!reader) return unauthenticated();
+
+    const humanOwner = reader.human;
+    const cacheKey = humanOwner.toLowerCase();
 
     // Check recent in-memory cache to prevent Arc RPC hammering
     const cached = getCachedTelemetry(cacheKey);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentByAddress } from "@/lib/agentStore";
-import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME } from "@/lib/arc";
+import { resolveAgentReader } from "@/lib/agentToken";
+import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, ARC_RPC_URL } from "@/lib/arc";
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,6 +21,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // The address is on chain, so it is not a secret and cannot be the
+    // authorisation. A session or a mandate says who is asking; the agent has
+    // to be theirs.
+    const asked = resolveAgentReader(req, agentAddress);
+    if ("error" in asked) return asked.error;
+
     const agent = getAgentByAddress(agentAddress);
     if (!agent) {
       return NextResponse.json(
@@ -28,7 +35,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const rpcUrl = process.env.ARC_RPC_URL || "https://rpc.arc.io/testnet";
+    const rpcUrl = ARC_RPC_URL;
     const availableCredit = Math.max(0, agent.creditLimit - agent.outstandingDebt);
 
     return NextResponse.json({

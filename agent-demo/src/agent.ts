@@ -5,6 +5,22 @@
  */
 
 const FLOAT_API_BASE = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+/**
+ * The agent's mandate: a card its human issued, not a password it chose.
+ *
+ * Every Float route that reads or spends against a credit line now asks who is
+ * calling. An agent has no browser session, so it presents this instead - and
+ * it can only reach the human who issued it, up to the cap written into it.
+ * Issue one from the dashboard, or POST /api/agent-token with a session.
+ */
+const AGENT_TOKEN = process.env.FLOAT_AGENT_TOKEN || "";
+
+/** Every call to Float carries the mandate; anything else is anonymous and refused. */
+const floatHeaders = (json = false): Record<string, string> => ({
+  ...(json ? { "Content-Type": "application/json" } : {}),
+  ...(AGENT_TOKEN ? { Authorization: `Bearer ${AGENT_TOKEN}` } : {}),
+});
 const MOCK_SERVICE_URL = `http://localhost:${process.env.MOCK_SERVICE_PORT || 4020}/api/market-data`;
 
 // Simulated Agent Profile
@@ -39,7 +55,9 @@ async function runAgentLifecycle() {
     // Step 2: Agent checks credit profile and calls Float Credit Borrow API
     console.log(`\n[Agent] 🔍 Checking available credit profile via GET /api/agent/credit...`);
     try {
-      const creditCheck = await fetch(`${FLOAT_API_BASE}/api/agent/credit?agentAddress=${AGENT_ADDRESS}`);
+      const creditCheck = await fetch(`${FLOAT_API_BASE}/api/agent/credit?agentAddress=${AGENT_ADDRESS}`, {
+        headers: floatHeaders(),
+      });
       if (creditCheck.ok) {
         const creditData = await creditCheck.json();
         console.log(`[Float Credit] Available Credit: $${creditData.availableCredit} USDC | Human Facility Debt: $${creditData.humanFacility?.totalOutstandingDebt ?? 0} USDC`);
@@ -50,7 +68,7 @@ async function runAgentLifecycle() {
     try {
       const borrowRes = await fetch(`${FLOAT_API_BASE}/api/borrow`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: floatHeaders(true),
         body: JSON.stringify({
           agentAddress: AGENT_ADDRESS,
           amount: borrowAmount,
@@ -103,7 +121,7 @@ async function runAgentLifecycle() {
     try {
       const repayRes = await fetch(`${FLOAT_API_BASE}/api/repay`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: floatHeaders(true),
         body: JSON.stringify({
           agentAddress: AGENT_ADDRESS,
           amount: borrowAmount

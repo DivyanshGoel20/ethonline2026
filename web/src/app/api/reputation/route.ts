@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHumanReputationRecord } from "@/lib/reputationStore";
+import { resolveReader } from "@/lib/agentToken";
+import { unauthenticated } from "@/lib/session";
 import { getAllLoans } from "@/lib/loanStore";
 import { computeHumanReputation } from "@/lib/reputationEngine";
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const humanOwner =
-      searchParams.get("humanOwner") ||
-      process.env.HUMAN_OWNER ||
-      "";
-
-    if (!humanOwner) {
-      return NextResponse.json(
-        { success: false, error: "Missing humanOwner query parameter" },
-        { status: 400 }
-      );
-    }
+    // Whose reputation is not the caller's to choose - a credit score read by
+    // anyone who knows a nullifier is not a credit score.
+    const reader = resolveReader(req);
+    if (!reader) return unauthenticated();
+    const humanOwner = reader.human;
 
     const record = getHumanReputationRecord(humanOwner);
     const loans = getAllLoans().filter(

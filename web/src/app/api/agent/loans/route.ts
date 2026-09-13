@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAgentByAddress } from "@/lib/agentStore";
+import { resolveAgentReader, resolveReader } from "@/lib/agentToken";
+import { unauthenticated } from "@/lib/session";
 import { getLoansByAgent, getLoansByHuman, getAllLoans } from "@/lib/loanStore";
 import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME } from "@/lib/arc";
 
@@ -15,25 +17,22 @@ export async function GET(req: NextRequest) {
     const statusFilter = searchParams.get("status")?.toUpperCase(); // "ACTIVE" | "SETTLED" | "ALL"
 
     if (!agentAddress) {
-      // If no agent address provided, allow querying all loans if an owner param is provided
-      const owner = searchParams.get("owner");
-      if (owner) {
-        const ownerLoans = getLoansByHuman(owner);
-        return NextResponse.json({
-          humanOwner: owner,
-          totalLoansCount: ownerLoans.length,
-          loans: ownerLoans,
-        });
-      }
+      // Without an agent, this is a read of the caller's own book. `?owner=`
+      // used to name whose - which made every human's loan history public to
+      // anyone holding a nullifier.
+      const reader = resolveReader(req);
+      if (!reader) return unauthenticated();
 
-      return NextResponse.json(
-        {
-          error:
-            "Missing agent address. Provide ?agentAddress=0x... or x-agent-address header.",
-        },
-        { status: 400 }
-      );
+      const ownerLoans = getLoansByHuman(reader.human);
+      return NextResponse.json({
+        humanOwner: reader.human,
+        totalLoansCount: ownerLoans.length,
+        loans: ownerLoans,
+      });
     }
+
+    const asked = resolveAgentReader(req, agentAddress);
+    if ("error" in asked) return asked.error;
 
     const agent = getAgentByAddress(agentAddress);
     if (!agent) {

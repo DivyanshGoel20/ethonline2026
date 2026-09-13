@@ -85,7 +85,14 @@ export class FloatSignerTS {
     // Delegate to Float API for atomic credit facility check, drawdown, and payment execution
     const res = await fetch(`${apiBase}/api/pay`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        // /api/pay spends against a human's line, so it asks who is calling.
+        // The signer holds a mandate, never a session.
+        ...(process.env.FLOAT_AGENT_TOKEN
+          ? { Authorization: `Bearer ${process.env.FLOAT_AGENT_TOKEN}` }
+          : {}),
+      },
       body: JSON.stringify({
         url,
         agentAddress: agentContext.agentAddress,
