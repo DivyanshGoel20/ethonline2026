@@ -25,7 +25,10 @@ import { FACILITATOR_URL, NETWORK, USDC, USDC_DECIMALS, optionalTopicId, seller 
 import { uaidForAgent, type AgentFacts } from "../src/hcs14";
 import { riskFor, universe } from "./risk";
 
-const PORT = Number(process.env.HEDERA_SERVICE_PORT || 4021);
+// A platform that injects PORT expects the process to bind to it, so an
+// explicit HEDERA_SERVICE_PORT wins locally and PORT is honoured in production.
+// Binding to the default instead means the host proxy reaches nothing.
+const PORT = Number(process.env.HEDERA_SERVICE_PORT || process.env.PORT || 4021);
 
 /** Per-record price. A one-record call costs this; a twenty-record call costs twenty times it. */
 const PRICE_PER_RECORD = 0.005;

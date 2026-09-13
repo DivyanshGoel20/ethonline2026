@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { overMandate, resolveSpender } from "@/lib/agentToken";
+import { unauthenticated } from "@/lib/session";
+import { hasCredential, overMandate, resolveSpender } from "@/lib/agentToken";
 import { BorrowRequest, BorrowResponse } from "@/types";
 import {
   getAgentByAddress,
@@ -14,6 +15,9 @@ import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 
 export async function POST(req: NextRequest) {
   try {
+    // Turn an anonymous caller away before discussing the request shape.
+    if (!hasCredential(req)) return unauthenticated();
+
     const body: BorrowRequest = await req.json();
     const { agentAddress, amount, memo } = body;
 

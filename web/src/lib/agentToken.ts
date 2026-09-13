@@ -241,3 +241,18 @@ export const overMandate = (wanted: number, cap: number) =>
     },
     { status: 403 }
   );
+
+/**
+ * Is there any credential behind this request at all?
+ *
+ * Cheap, and independent of the body. Routes that validate their input before
+ * authenticating end up answering an anonymous caller with a 400 that describes
+ * the request schema - a small leak, and an inconsistency that makes an
+ * unauthenticated probe look like it got further than it did.
+ */
+export function hasCredential(req: NextRequest): boolean {
+  return (
+    !!getHuman(req) ||
+    !!verifyAgentToken(bearerFrom(req.headers.get("authorization")))
+  );
+}

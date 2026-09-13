@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { unauthenticated } from "@/lib/session";
 import { ARC_TREASURY } from "@/lib/browserChain";
-import { resolveSpender } from "@/lib/agentToken";
+import { hasCredential, resolveSpender } from "@/lib/agentToken";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 import { flushAgent } from "@/lib/ledgerFlush";
 import { RepayRequest, RepayResponse } from "@/types";
@@ -16,6 +17,9 @@ import { executeOnChainRepayment, verifyArcRepayment } from "@/lib/facilityContr
 
 export async function POST(req: NextRequest) {
   try {
+    // Turn an anonymous caller away before discussing the request shape.
+    if (!hasCredential(req)) return unauthenticated();
+
     const body: RepayRequest = await req.json();
     const { agentAddress, amount, targetAgentAddress, targetLoanId, txHash } =
       body;

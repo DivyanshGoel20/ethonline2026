@@ -42,7 +42,7 @@ import {
   hashscanTx,
 } from "../src/config";
 
-const PORT = Number(process.env.HEDERA_PAYER_PORT || 4023);
+const PORT = Number(process.env.HEDERA_PAYER_PORT || process.env.PORT || 4023);
 const SERVICE = process.env.HEDERA_SERVICE_URL || "http://localhost:4021";
 
 const app = express();

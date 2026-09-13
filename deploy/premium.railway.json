@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npm ci && npm ci --prefix float-premium-api"
+  },
+  "deploy": {
+    "startCommand": "npm --prefix float-premium-api start",
+    "healthcheckPath": "/",
+    "restartPolicyType": "ON_FAILURE",
+    "numReplicas": 1
+  }
+}
