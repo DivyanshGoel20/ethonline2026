@@ -22,7 +22,8 @@
     "hedera:payer": "tsx --env-file=.env hedera/service/payer-api.ts",
     "float:fetch": "tsx --env-file=.env hedera/agent/cli.ts",
     "float:mcp": "tsx --env-file=.env hedera/mcp/server.ts",
-    "hedera:probe-default": "tsx --env-file=.env hedera/scripts/probe-default.ts"
+    "hedera:probe-default": "tsx --env-file=.env hedera/scripts/probe-default.ts",
+    "hedera:issue-token": "tsx --env-file=.env hedera/scripts/issue-token.ts"
   },
   "keywords": [
     "ai-agents",

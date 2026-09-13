@@ -182,57 +182,49 @@ Two details that only show up when you build this:
   redirects `agent()` at runtime, so the funded demo wallet and the empty agent
   wallet coexist without either config knowing about the other.
 
-## Borrowing is opt-in
+## An agent spends under a mandate, not by asking
 
-An agent was handed this rail with no explanation, bought some data, and
-objected to what it found:
+Two agents were handed this rail without being told how it worked, and both
+objected to the same thing: a purchase silently became a loan, and the terms
+turned up after the debt existed. The second went further and caught the
+disclosure naming the wrong borrower.
 
-> I did not pay. My wallet had nothing to pay with... There was no confirmation
-> step, no disclosed interest/fee terms, and no opt-out — the decision to incur
-> debt in your name was made by the tooling, not by me, and I only learned the
-> terms after the debt existed.
+The first fix was to make the *agent* consent per purchase. That was the wrong
+abstraction. Float lends to a World-verified human, and an agent spending that
+line is the product — the human already consented, when they verified and opened
+the facility. What was missing was any way for an agent running outside the
+browser to prove **which human sent it**.
 
-It was right on every count, so the rail changed.
-
-- **A purchase never silently becomes a loan.** If the wallet cannot cover the
-  price, nothing is bought and no debt is taken on. The caller gets the price,
-  its balance, the shortfall and the full terms, and has to come back with
-  `allowCredit: true` (`--allow-credit`) to proceed.
-- **Terms are stated before the money moves,** not discovered afterwards, and
-  `float_terms` will recite them at any point, for free.
-- **Borrowing is bounded.** A call may borrow 0.50 USDC by default; more has to
-  be asked for by name with `maxCreditUsd`. Previously a single call could
-  borrow without limit, and `records=25` quietly borrowed five times what
-  `records=5` did.
-
-The terms themselves: principal only, **no fee and no interest**, seven-day term,
-and the borrower is the Float facility account rather than the agent's wallet.
-
-### Who is actually on the hook
-
-The fixed rail was handed back to a fresh agent, which verified every claim
-against the mirror node rather than the CLI's own output, and found the
-disclosure itself was wrong. It said the borrower was the Float facility
-account — true of `config.ts`'s fallback, false of this deployment, where
-`HEDERA_BORROWER_ID` names a third account distinct from both the agent wallet
-and the operator. An agent trusting that line would have had the counterparty
-wrong.
-
-The terms now resolve the borrower at runtime and name it, and say plainly that
-the party accepting is not the party that owes:
+So it works like a card now. A verified human issues a token to their agent with
+a cap they choose (`POST /api/agent-token`). Issuing it *is* the authorisation.
+The agent spends inside that cap without asking again, and the party that agreed
+and the party that owes are the same person.
 
 ```
-Who is on the hook
-  The repayment is signed by and debited from 0.0.10509545.
-  That is not your wallet (0.0.10520109), and it may not be you at all.
+no mandate      -> nothing bought, nothing owed
+mandate 0.004   -> declined: 0.015 exceeds the credit allowance of 0.004000
+mandate 0.50    -> paid 0.015 USDC on your human's credit line
 ```
 
-That gap is real and structural, not a wording problem. Here the borrower's key
-sits in `.env`, so an agent's `--allow-credit` binds an account that consented to
-nothing. In a real deployment the borrower signs for themselves and the two are
-the same party — which is what Hedera's scheduled transactions make possible, a
-single signature at drawdown rather than a standing allowance. Until then the
-disclosure says so out loud.
+Every purchase goes through the app rather than straight at the payer, because
+the app is what knows whose line is being spent. It binds the smaller of the
+mandate cap and the human's remaining Arc headroom, then records the drawdown
+against that human in `railDebt` — so Arc and Hedera net against **one** limit
+and the line cannot be spent twice.
+
+`hedera/service/payer-api.ts` is mechanism, not policy: it knows how to buy
+things on Hedera and nothing about whose money it is. It used to be reachable by
+anyone who could open the port. It now requires `FLOAT_PAYER_SECRET`, so the
+only caller is the app that did the authorising.
+
+```bash
+npm run hedera:issue-token -- <humanNullifier> 0.50 7   # what the browser does
+npm run float:fetch -- --mandate                        # what am I allowed to spend
+npm run float:fetch -- --records 3                      # spend it
+```
+
+Verified: a forged signature and an expired token are both refused, the cap
+binds independently of headroom, and the debt lands on the issuing human.
 
 ### What a default actually looks like
 

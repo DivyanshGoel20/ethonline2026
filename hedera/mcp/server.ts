@@ -39,7 +39,8 @@ import { z } from "zod";
 import { payForResource } from "../agent/payer";
 import { agent, fromUnits, hashscanAccount, hashscanSchedule, hashscanTx } from "../src/config";
 import { usdcBalance } from "../src/mirror";
-import { DEFAULT_CREDIT_CAP_USDC, preflight, termsText } from "../src/terms";
+import { preflight, termsText } from "../src/terms";
+import { AGENT_TOKEN, NO_MANDATE, describeMandate, payUnderMandate } from "../src/mandate";
 
 const FEED = process.env.FLOAT_FEED_URL || "http://localhost:4021";
 
@@ -117,85 +118,81 @@ server.registerTool(
 );
 
 server.registerTool(
+  "float_mandate",
+  {
+    title: "What am I allowed to spend?",
+    description:
+      "Report the spending mandate this agent carries: who issued it, the cap, and when it " +
+      "expires. Without one the agent cannot borrow at all.",
+    inputSchema: {},
+  },
+  async () => {
+    const m = describeMandate();
+    if (!m) return text(NO_MANDATE);
+    return text(
+      [
+        `Mandate held`,
+        `  issued by human  ${m.human.slice(0, 18)}…`,
+        `  label            ${m.label}`,
+        `  cap              ${m.capUsd.toFixed(2)} USDC`,
+        `  expires          ${m.expiresAt}`,
+        ``,
+        `Purchases draw on that human's Float credit line, up to this cap and no further.`,
+        `They authorised this when they issued the token; you do not need to ask again.`,
+      ].join("\n")
+    );
+  }
+);
+
+server.registerTool(
   "float_fetch",
   {
-    title: "Buy data, on credit if needed",
+    title: "Buy data under your mandate",
     description:
-      "Fetch a paid x402 resource. If the agent's wallet cannot cover the price, Float extends " +
-      "credit: it parks a dated repayment on Hedera first, then settles the invoice. Returns the " +
-      "data along with who paid for it.",
+      "Fetch a paid x402 resource. If the agent's wallet cannot cover it, the shortfall is " +
+      "drawn against the credit line of the human who issued this agent's mandate, bounded by " +
+      "their cap and their remaining headroom. Requires a mandate.",
     inputSchema: {
       records: z.number().int().min(1).max(25).optional()
         .describe("How many risk records to buy. Price scales with this."),
       url: z.string().optional()
         .describe("A specific x402 resource URL. Defaults to the risk feed."),
-      allowCredit: z.boolean().optional()
-        .describe(
-          "Permission to borrow. If your wallet cannot cover the price and this is not true, " +
-          "nothing is bought and no debt is taken on - you get the terms back instead."
-        ),
-      maxCreditUsd: z.number().optional()
-        .describe(`Most you will borrow on this call. Defaults to ${DEFAULT_CREDIT_CAP_USDC} USDC.`),
     },
   },
-  async ({ records, url, allowCredit, maxCreditUsd }) => {
+  async ({ records, url }) => {
     const target = url ?? `${FEED}/risk?records=${records ?? 1}`;
-    const cap = maxCreditUsd ?? DEFAULT_CREDIT_CAP_USDC;
 
-    // Decide before spending, not after. An agent gets to see the price, its own
-    // balance, and the terms, and has to say yes to credit in so many words.
-    const pre = await preflight(target, agent().id, cap);
-
-    if (pre?.needsCredit && !allowCredit) {
+    if (!AGENT_TOKEN) {
+      const pre = await preflight(target, agent().id, 0);
       return text(
         [
           `Nothing was bought and no debt was taken on.`,
-          ``,
-          `  price    ${pre.priceUsdc} USDC`,
-          `  wallet   ${pre.balanceUsdc} USDC`,
-          `  short by ${pre.shortfallUsdc} USDC`,
-          ``,
-          `Covering that shortfall means borrowing. Read the terms below, and if you`,
-          `accept them, call float_fetch again with allowCredit: true.`,
-          ``,
-          termsText(pre.shortfallUsdc),
+          pre ? `\n  price ${pre.priceUsdc} USDC, wallet ${pre.balanceUsdc} USDC\n` : ``,
+          NO_MANDATE,
         ].join("\n")
       );
     }
 
-    if (pre?.needsCredit && !pre.withinCap) {
-      return text(
-        [
-          `Declined: this call would borrow ${pre.shortfallUsdc} USDC, over your ${cap} USDC cap.`,
-          ``,
-          `Buy fewer records, or raise maxCreditUsd deliberately if you mean to borrow more.`,
-        ].join("\n")
-      );
-    }
-
-    const receipt = await payForResource(target, { maxCreditUsd: cap });
-
+    const r = await payUnderMandate(target);
     const lines = [
-      receipt.fundedBy === "float-credit"
-        ? `Paid ${receipt.amount} USDC — you authorised credit, so Float covered the shortfall.`
-        : `Paid ${receipt.amount} USDC from the agent's own balance. No credit was used.`,
+      r.fundedBy === "float-credit"
+        ? `Paid ${r.amount} USDC, drawn on your human's credit line under your mandate.`
+        : `Paid ${r.amount} USDC from the agent's own balance. No credit was used.`,
     ];
 
-    if (receipt.transactionId) lines.push(`  settlement  ${hashscanTx(receipt.transactionId)}`);
-
-    if (receipt.scheduledRepayment) {
-      const s = receipt.scheduledRepayment;
+    if (r.transactionId) lines.push(`  settlement  ${hashscanTx(r.transactionId)}`);
+    if (r.scheduledRepayment) {
+      const sched = r.scheduledRepayment;
       lines.push(
-        `  repayment   ${s.amount} USDC due ${s.dueAt}`,
-        `              schedule ${s.scheduleId}`,
-        `              ${hashscanSchedule(s.scheduleId)}`,
+        `  repayment   ${sched.amount} USDC due ${sched.dueAt}`,
+        `              ${hashscanSchedule(sched.scheduleId)}`,
         ``,
-        `That repayment was parked on consensus before the invoice was paid, and it`,
-        `executes on its own at the due date. Nobody has to be online for it.`
+        `Parked on consensus before the invoice was paid, and it executes on its own`,
+        `at the due date with nobody online.`
       );
     }
 
-    lines.push(``, `Data:`, JSON.stringify(receipt.data, null, 2));
+    lines.push(``, `Data:`, JSON.stringify(r.data, null, 2));
     return text(lines.join("\n"));
   }
 );

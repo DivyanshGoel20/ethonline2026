@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const [statusRes, catRes] = await Promise.all([
-      fetch(`${HEDERA_PAYER_URL}/status`, { cache: "no-store", signal: AbortSignal.timeout(5000) }),
-      fetch(`${HEDERA_PAYER_URL}/catalogue`, { cache: "no-store", signal: AbortSignal.timeout(5000) }),
+      fetch(`${HEDERA_PAYER_URL}/status`, { headers: { "x-float-payer-secret": process.env.FLOAT_PAYER_SECRET ?? "" }, cache: "no-store", signal: AbortSignal.timeout(5000) }),
+      fetch(`${HEDERA_PAYER_URL}/catalogue`, { headers: { "x-float-payer-secret": process.env.FLOAT_PAYER_SECRET ?? "" }, cache: "no-store", signal: AbortSignal.timeout(5000) }),
     ]);
     if (!statusRes.ok) throw new Error(`payer returned ${statusRes.status}`);
 

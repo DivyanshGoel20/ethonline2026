@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
   if (!getHuman(req)) return unauthenticated();
   try {
     const res = await fetch(`${HEDERA_PAYER_URL}/schedules`, {
+      headers: { "x-float-payer-secret": process.env.FLOAT_PAYER_SECRET ?? "" },
       cache: "no-store",
       signal: AbortSignal.timeout(6000),
     });

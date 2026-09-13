@@ -12,7 +12,8 @@
 import { payForResource } from "./payer";
 import { agent, fromUnits, hashscanSchedule, hashscanTx } from "../src/config";
 import { usdcBalance } from "../src/mirror";
-import { DEFAULT_CREDIT_CAP_USDC, preflight, termsText } from "../src/terms";
+import { termsText } from "../src/terms";
+import { AGENT_TOKEN, NO_MANDATE, describeMandate, payUnderMandate } from "../src/mandate";
 
 const FEED = process.env.FLOAT_FEED_URL || "http://localhost:4021";
 
@@ -49,44 +50,40 @@ async function main() {
     return;
   }
 
+  if (flag("mandate")) {
+    const m = describeMandate();
+    if (!m) { console.log(NO_MANDATE); process.exitCode = 1; return; }
+    console.log(`mandate from human ${m.human.slice(0, 18)}…`);
+    console.log(`  label   ${m.label}`);
+    console.log(`  cap     ${m.capUsd.toFixed(2)} USDC`);
+    console.log(`  expires ${m.expiresAt}`);
+    return;
+  }
+
   const url = arg("url") ?? `${FEED}/risk?records=${arg("records") ?? "1"}`;
-  const cap = Number(arg("max-credit") ?? DEFAULT_CREDIT_CAP_USDC);
 
-  // Same consent gate the MCP tool applies: borrowing is opt-in, and bounded.
-  const pre = await preflight(url, me.id, cap);
-
-  if (pre?.needsCredit && !flag("allow-credit")) {
-    console.log(`\nNothing bought, no debt taken on.`);
-    console.log(`  price ${pre.priceUsdc} USDC, wallet ${pre.balanceUsdc} USDC, short ${pre.shortfallUsdc} USDC\n`);
-    console.log(termsText(pre.shortfallUsdc));
-    console.log(`\nRe-run with --allow-credit to accept these terms.`);
+  // No mandate, no spending. The agent is not asked to agree to credit terms -
+  // its human already did, by issuing the token.
+  if (!AGENT_TOKEN) {
+    console.log(`\nNothing bought, no debt taken on.\n`);
+    console.log(NO_MANDATE);
     process.exitCode = 1;
     return;
   }
 
-  if (pre?.needsCredit && !pre.withinCap) {
-    console.error(
-      `\ndeclined: borrowing ${pre.shortfallUsdc} USDC exceeds the ${cap} USDC cap.` +
-        `\nraise it with --max-credit if you mean to.`
-    );
-    process.exitCode = 1;
-    return;
-  }
-
-  const receipt = await payForResource(url, { maxCreditUsd: cap });
+  const r = await payUnderMandate(url);
 
   console.log(
-    receipt.fundedBy === "float-credit"
-      ? `\npaid ${receipt.amount} USDC on Float credit (authorised with --allow-credit)`
-      : `\npaid ${receipt.amount} USDC from the agent's own balance`
+    r.fundedBy === "float-credit"
+      ? `\npaid ${r.amount} USDC on your human's credit line, under your mandate`
+      : `\npaid ${r.amount} USDC from the agent's own balance`
   );
-  if (receipt.transactionId) console.log(`settlement ${hashscanTx(receipt.transactionId)}`);
-  if (receipt.scheduledRepayment) {
-    const s = receipt.scheduledRepayment;
-    console.log(`repayment  ${s.amount} USDC due ${s.dueAt}`);
-    console.log(`           ${hashscanSchedule(s.scheduleId)}`);
+  if (r.transactionId) console.log(`settlement ${hashscanTx(r.transactionId)}`);
+  if (r.scheduledRepayment) {
+    console.log(`repayment  ${r.scheduledRepayment.amount} USDC due ${r.scheduledRepayment.dueAt}`);
+    console.log(`           ${hashscanSchedule(r.scheduledRepayment.scheduleId)}`);
   }
-  console.log(`\n${JSON.stringify(receipt.data, null, 2)}`);
+  console.log(`\n${JSON.stringify(r.data, null, 2)}`);
 }
 
 main().catch((err) => {

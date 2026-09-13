@@ -22,7 +22,10 @@ export async function POST(req: NextRequest) {
   try {
     const res = await fetch(`${HEDERA_PAYER_URL}/repay`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-float-payer-secret": process.env.FLOAT_PAYER_SECRET ?? "",
+      },
       body: JSON.stringify({ scheduleId }),
       signal: AbortSignal.timeout(120_000),
     });

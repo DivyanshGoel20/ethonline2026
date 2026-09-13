@@ -45,6 +45,13 @@ function secret(): Buffer {
 const sign = (payload: string) =>
   crypto.createHmac("sha256", secret()).update(payload).digest("base64url");
 
+/**
+ * The same signature primitive, for credentials that are not session cookies.
+ * Sharing the secret keeps one thing to configure; the callers stamp their own
+ * type into the payload so the two can never be swapped for one another.
+ */
+export const signPayload = sign;
+
 /** Marks the response as authenticating this World nullifier. */
 export function attachSession(res: NextResponse, nullifier: string): NextResponse {
   const exp = Math.floor(Date.now() / 1000) + TTL_SECONDS;

@@ -15,6 +15,18 @@
  *   npm run hedera:payer
  */
 import express from "express";
+
+/**
+ * This service is mechanism, not policy. It knows how to buy something on
+ * Hedera; it does not know whose credit line is being spent, and it must not be
+ * the thing deciding. The web app owns that - it resolves the human, their
+ * headroom and their agent's mandate, then calls in here.
+ *
+ * So the only question at this door is whether the caller is that app. Left
+ * open, anyone who could reach the port could spend the facility.
+ */
+const PAYER_SECRET = process.env.FLOAT_PAYER_SECRET;
+
 import { payForResource } from "../agent/payer";
 import { settleEarly } from "../src/scheduled";
 import { append } from "../src/hcs";
@@ -32,6 +44,19 @@ const PORT = Number(process.env.HEDERA_PAYER_PORT || 4023);
 const SERVICE = process.env.HEDERA_SERVICE_URL || "http://localhost:4021";
 
 const app = express();
+
+app.use((req, res, next) => {
+  if (!PAYER_SECRET) {
+    return res.status(500).json({
+      success: false,
+      error: "FLOAT_PAYER_SECRET is not set; refusing to serve an unauthenticated payer.",
+    });
+  }
+  if (req.headers["x-float-payer-secret"] !== PAYER_SECRET) {
+    return res.status(401).json({ success: false, error: "Not authorised to spend the facility." });
+  }
+  next();
+});
 app.use(express.json());
 
 /** Whether this rail can actually be used, so the UI can say so honestly. */

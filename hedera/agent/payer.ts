@@ -123,9 +123,13 @@ export async function payForResource(
   if (!canSelfFund) {
     const priceUsd = Number(fromUnits(price));
     if (opts?.maxCreditUsd !== undefined && priceUsd > opts.maxCreditUsd) {
+      // Whatever bound here - the human's remaining headroom, or the smaller cap
+      // on an agent's mandate - arrives as one number, so the wording has to
+      // cover both. Six places, because a 0.004 allowance printed to two said
+      // "0.00" and read like the line was exhausted when it was not.
       throw new Error(
-        `Float credit declined: ${fromUnits(price)} USDC exceeds the remaining ` +
-          `facility headroom of ${opts.maxCreditUsd.toFixed(2)} USDC.`
+        `Float credit declined: ${fromUnits(price)} USDC exceeds the credit ` +
+          `allowance of ${opts.maxCreditUsd.toFixed(6)} USDC available to this caller.`
       );
     }
 
