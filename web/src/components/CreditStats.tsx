@@ -2,9 +2,8 @@
 
 import React from "react";
 import { CreditStats as CreditStatsType } from "@/types";
-import { Wave, Boat, Label, usd } from "./ui";
-
-const FACILITY_CONTRACT = "0x43bC32b6D54be323b9072494Efb8E8e073E642C4";
+import { Wave, Boat, Label, usd, short } from "./ui";
+import { FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
 const TICKS = [0, 25, 50, 75, 100];
 
 interface CreditStatsProps {
@@ -120,11 +119,11 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
         <a
           className="mn faint hover:text-[color:var(--ink)] transition-colors"
           style={{ fontSize: 9.5 }}
-          href={`https://testnet.arcscan.app/address/${FACILITY_CONTRACT}`}
+          href={`https://testnet.arcscan.app/address/${FLOAT_CREDIT_FACILITY_ADDRESS}`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          0xAa2d&hellip;0686 &middot; Arc testnet
+          {short(FLOAT_CREDIT_FACILITY_ADDRESS)} &middot; Arc testnet
         </a>
       </div>
     </section>

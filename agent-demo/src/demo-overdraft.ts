@@ -25,7 +25,7 @@ const FUNDED_AGENT_KEY = (process.env.FUNDED_AGENT_KEY || process.env.AGENT_PRIV
 
 const CREDIT_FACILITY_ADDRESS =
   process.env.FLOAT_CREDIT_FACILITY_ADDRESS ||
-  "0xAa2d23bAC7b6f9b4ca2737252F924b3F485E0686";
+  "0x43bC32b6D54be323b9072494Efb8E8e073E642C4";
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
