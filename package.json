@@ -13,6 +13,7 @@
     "dev:mock": "npm --workspace=agent-demo run mock",
     "premium": "npm --prefix float-premium-api start",
     "lint": "npm --workspace=web run lint",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p web/tsconfig.json && tsc --noEmit -p agent-demo/tsconfig.json",
     "deposit": "tsx --env-file=.env scripts/deposit-gateway.ts",
     "balances": "tsx --env-file=.env scripts/check-all-balances.ts",
     "float:fetch": "tsx --env-file=.env hedera/agent/cli.ts",
@@ -55,6 +56,7 @@
     "express": "^5.2.1"
   },
   "devDependencies": {
+    "@types/bs58": "^4.0.4",
     "tsx": "^4.23.13"
   }
 }

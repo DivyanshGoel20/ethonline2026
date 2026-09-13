@@ -1,0 +1,20 @@
+{
+  // Covers the trees that run through tsx, which transpiles without checking:
+  // hedera/, float-premium-api/ and scripts/ had no tsconfig at all, so nothing
+  // ever typechecked them. web/ and agent-demo/ own their own configs.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    // Bundler, not NodeNext: tsx resolves extensionless relative imports and the
+    // whole tree is written that way.
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "resolveJsonModule": true
+  },
+  "include": ["hedera/**/*.ts", "float-premium-api/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules", "**/node_modules", "**/dist"]
+}
