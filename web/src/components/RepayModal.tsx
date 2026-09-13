@@ -5,6 +5,7 @@ import { Agent } from "@/types";
 import { parseUnits } from "viem";
 import { Sheet, Field, Kv, Label, ErrorNote, usd, short } from "./ui";
 import { ensureArcNetwork, ARC_TREASURY } from "@/lib/browserChain";
+import { useWallet } from "@/lib/useWallet";
 
 interface RepayModalProps {
   agent: Agent | null;
@@ -22,15 +23,22 @@ export const RepayModal: React.FC<RepayModalProps> = ({
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [useBrowserWallet, setUseBrowserWallet] = useState(false);
+  const wallet = useWallet();
+
+  /**
+   * Spend from the person's own wallet only when they have connected one.
+   *
+   * This used to read `!!window.ethereum` - having the extension installed was
+   * taken as agreement to be billed by it, with nothing on screen saying so.
+   * A connection is a decision someone made in the header; an installed
+   * extension is not.
+   */
+  const useBrowserWallet = Boolean(wallet.address) && !agent?.isAutonomous;
 
   useEffect(() => {
     if (isOpen && agent) {
       setAmount(agent.outstandingDebt.toFixed(2));
       setError(null);
-      setUseBrowserWallet(
-        typeof window !== "undefined" && !!(window as any).ethereum && !agent.isAutonomous
-      );
     }
   }, [isOpen, agent]);
 
@@ -108,11 +116,20 @@ export const RepayModal: React.FC<RepayModalProps> = ({
             disabled={busy || value <= 0 || overDebt}
             className="btn btn-solid"
           >
-            {busy ? "Settling on Arc…" : "Confirm repayment"}
+            {busy ? "Settling on Arc…" : useBrowserWallet ? "Pay from my wallet" : "Confirm repayment"}
           </button>
         </>
       }
     >
+      <div
+        className="mn faint mb-3 px-3 py-2"
+        style={{ fontSize: 10, border: "1px solid var(--hair)" }}
+      >
+        {useBrowserWallet
+          ? `Settles from your connected wallet ${short(wallet.address)} on Arc testnet.`
+          : "Settles from the Float facility. Connect a wallet in the header to pay from your own instead."}
+      </div>
+
       <div className="panel-sunk flex items-center justify-between gap-4 px-4 py-3.5">
         <div>
           <Label>Outstanding</Label>

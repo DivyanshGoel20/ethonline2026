@@ -3,6 +3,7 @@
 import React from "react";
 import { LogOut, Terminal, Plus } from "lucide-react";
 import { Wordmark, short } from "./ui";
+import { WalletButton } from "./WalletButton";
 import type { Rail } from "@/lib/rails";
 
 interface HeaderProps {
@@ -80,6 +81,8 @@ export const Header: React.FC<HeaderProps> = ({
             human {short(nullifierHash, 6, 4)}
           </span>
         )}
+
+        <WalletButton />
 
         <button onClick={onOpenApiDocs} className="btn" title="Agent HTTP API">
           <Terminal className="w-3.5 h-3.5" />
