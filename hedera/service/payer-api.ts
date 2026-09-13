@@ -320,9 +320,24 @@ app.post("/repay", async (req, res) => {
     });
   }
 
+  // Settle from the account that actually owes. The parked row records who
+  // signed the schedule, and since agents became their own borrowers that is
+  // usually an agent wallet rather than the configured fallback. Paying from the
+  // wrong account would take money off someone who owed nothing and cancel the
+  // real debt for free.
+  const owes = identityFor(parked.borrowerId) ?? borrower();
+  if (parked.borrowerId && owes.id !== parked.borrowerId) {
+    return res.status(409).json({
+      success: false,
+      error:
+        `This repayment is owed by ${parked.borrowerId}, and no wallet for it is on file. ` +
+        `Refusing to settle it from ${owes.id}.`,
+    });
+  }
+
   try {
     const result = await settleEarly({
-      borrower: borrower(),
+      borrower: owes,
       amount: parked.amountUsd.toFixed(6),
       scheduleId,
     });

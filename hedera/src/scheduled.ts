@@ -23,6 +23,7 @@ import {
   ScheduleInfoQuery,
   ScheduleSignTransaction,
   Timestamp,
+  TransactionId,
   TransferTransaction,
 } from "@hiero-ledger/sdk";
 import { USDC, clientFor, operator, parseKey, toUnits, type Identity } from "./config";
@@ -128,14 +129,29 @@ export async function settleEarly(params: {
   const treasury = params.treasury || float.id;
   const units = toUnits(params.amount);
 
-  const client = clientFor(params.borrower);
+  // Float pays the network fee, the borrower signs the debit.
+  //
+  // Agents are minted with no HBAR on purpose - Blocky402 is the fee payer on
+  // every x402 settlement, so an agent on this rail never needs gas. Early
+  // repayment is a plain transfer with no facilitator in it, so left alone the
+  // agent would be the fee payer and the whole thing dies on
+  // INSUFFICIENT_PAYER_BALANCE with USDC sitting right there. Naming Float as
+  // the payer keeps that promise consistent: the agent authorises what leaves
+  // its account, and never has to hold gas to do it.
+  const client = clientFor(float);
   let transactionId: string;
   try {
-    const transfer = await new TransferTransaction()
+    const frozen = new TransferTransaction()
       .addTokenTransfer(USDC, params.borrower.id, -Number(units))
       .addTokenTransfer(USDC, treasury, Number(units))
       .setTransactionMemo(`Float early repayment of ${params.amount} USDC`)
-      .execute(client);
+      .setTransactionId(TransactionId.generate(float.id))
+      .freezeWith(client);
+
+    // Debiting the borrower needs the borrower's signature; Float's is added on
+    // execute as the fee payer.
+    const signed = await frozen.sign(parseKey(params.borrower.key));
+    const transfer = await signed.execute(client);
 
     await transfer.getReceipt(client);
     transactionId = transfer.transactionId.toString();
