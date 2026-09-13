@@ -2,7 +2,7 @@
   "name": "float-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "Float \u2014 an undercollateralised USDC credit line for autonomous agents, gated by World ID, recorded on Arc, settled on Arc and Hedera",
+  "description": "Float — an undercollateralised USDC credit line for autonomous agents, gated by World ID, recorded on Arc, settled on Arc and Hedera",
   "workspaces": [
     "web",
     "agent-demo"
@@ -28,7 +28,8 @@
     "hedera:reconcile": "tsx --env-file=.env hedera/scripts/reconcile.ts",
     "hedera:service": "tsx --env-file=.env hedera/service/server.ts",
     "hedera:setup": "tsx --env-file=.env hedera/scripts/setup.ts",
-    "hedera:watch": "tsx --env-file=.env hedera/scripts/watch-schedule.ts"
+    "hedera:watch": "tsx --env-file=.env hedera/scripts/watch-schedule.ts",
+    "hedera:lifecycle": "tsx --env-file=.env hedera/scripts/lifecycle.ts"
   },
   "keywords": [
     "ai-agents",

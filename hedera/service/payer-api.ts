@@ -28,6 +28,7 @@ import express from "express";
 const PAYER_SECRET = process.env.FLOAT_PAYER_SECRET;
 
 import { payForResource } from "../agent/payer";
+import { identityFor, provisionWallet } from "../src/agentWallets";
 import { settleEarly } from "../src/scheduled";
 import { append } from "../src/hcs";
 import { liveRepayments, findParked, isStillParked, markSettled, recordParked } from "./scheduleStore";
@@ -95,6 +96,25 @@ app.get("/catalogue", (_req, res) => {
   });
 });
 
+/**
+ * Mint an agent its own wallet.
+ *
+ * Behind the payer secret, so only the app can ask - and the app only asks for
+ * a human who has just verified with World.
+ */
+app.post("/provision-agent", async (req, res) => {
+  const humanOwner = String(req.body?.humanOwner || "");
+  const label = String(req.body?.label || "agent");
+  if (!humanOwner) return res.status(400).json({ error: "Missing humanOwner" });
+
+  try {
+    const w = await provisionWallet({ humanOwner, label });
+    res.json({ wallet: { id: w.id, evmAddress: w.evmAddress, label: w.label } });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "could not mint a wallet" });
+  }
+});
+
 app.post("/pay", async (req, res) => {
   const url = String(req.body?.url || "");
   if (!url) return res.status(400).json({ error: "Missing url" });
@@ -106,8 +126,23 @@ app.post("/pay", async (req, res) => {
   const maxCreditUsd =
     req.body?.maxCreditUsd === undefined ? undefined : Number(req.body.maxCreditUsd);
 
+  // Who owes. The app names the agent; this process holds the key that lets that
+  // agent sign its own repayment. Without one it falls back to the configured
+  // borrower - which is Float owing Float, a promise it made to itself.
+  const borrowerId = String(req.body?.borrowerId || "");
+  const asAgent = borrowerId ? identityFor(borrowerId) : null;
+  if (borrowerId && !asAgent) {
+    return res.status(400).json({
+      success: false,
+      error: `No wallet on file for ${borrowerId}; it cannot sign its own repayment.`,
+    });
+  }
+
   try {
-    const receipt = await payForResource(url, { maxCreditUsd });
+    const receipt = await payForResource(url, {
+      maxCreditUsd,
+      ...(asAgent ? { borrower: asAgent } : {}),
+    });
 
     // Index the obligation so it can be found and cancelled later. Without
     // this the schedule id exists only in a log line, and settling early is
@@ -120,7 +155,7 @@ app.post("/pay", async (req, res) => {
       if (receipt.tranche.parkedNow) {
         recordParked({
           scheduleId: receipt.tranche.scheduleId,
-          borrowerId: process.env.HEDERA_BORROWER_ID || "",
+          borrowerId: asAgent?.id || process.env.HEDERA_BORROWER_ID || "",
           amountUsd: receipt.tranche.ceilingUsd,
           dueAt: receipt.tranche.dueAt,
           resource: `tranche ceiling ${receipt.tranche.ceilingUsd.toFixed(6)} USDC`,
@@ -129,7 +164,7 @@ app.post("/pay", async (req, res) => {
     } else if (receipt.scheduledRepayment) {
       recordParked({
         scheduleId: receipt.scheduledRepayment.scheduleId,
-        borrowerId: process.env.HEDERA_BORROWER_ID || "",
+        borrowerId: asAgent?.id || process.env.HEDERA_BORROWER_ID || "",
         amountUsd: Number(receipt.scheduledRepayment.amount),
         dueAt: receipt.scheduledRepayment.dueAt,
         resource: url,

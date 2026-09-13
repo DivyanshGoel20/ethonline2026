@@ -28,19 +28,24 @@ const TYPE = "agent";
 export type AgentGrant = {
   /** World nullifier of the human who issued it. */
   human: string;
+  /**
+   * The agent's own Hedera account, when it has one. This is what signs and is
+   * debited for a repayment, so the party that spent is the party that owes.
+   */
+  hederaAccountId?: string;
   /** Most this agent may borrow, in USDC, across the life of the token. */
   capUsd: number;
   label: string;
   expiresAt: string;
 };
 
-type Claims = { typ: string; n: string; cap: number; lbl: string; exp: number };
+type Claims = { typ: string; n: string; cap: number; lbl: string; exp: number; hed?: string };
 
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o), "utf8").toString("base64url");
 
 export function mintAgentToken(
   human: string,
-  opts: { capUsd: number; days: number; label: string }
+  opts: { capUsd: number; days: number; label: string; hederaAccountId?: string }
 ): { token: string; grant: AgentGrant } {
   const exp = Math.floor(Date.now() / 1000) + Math.round(opts.days * 86400);
   const claims: Claims = {
@@ -49,6 +54,7 @@ export function mintAgentToken(
     cap: opts.capUsd,
     lbl: opts.label.slice(0, 64),
     exp,
+    ...(opts.hederaAccountId ? { hed: opts.hederaAccountId } : {}),
   };
   const payload = b64(claims);
   return {
@@ -57,6 +63,7 @@ export function mintAgentToken(
       human,
       capUsd: opts.capUsd,
       label: claims.lbl,
+      hederaAccountId: opts.hederaAccountId,
       expiresAt: new Date(exp * 1000).toISOString(),
     },
   };
@@ -87,6 +94,7 @@ export function verifyAgentToken(token: string | undefined | null): AgentGrant |
       human: c.n,
       capUsd: c.cap,
       label: typeof c.lbl === "string" ? c.lbl : "",
+      hederaAccountId: typeof c.hed === "string" ? c.hed : undefined,
       expiresAt: new Date(c.exp * 1000).toISOString(),
     };
   } catch {

@@ -113,6 +113,14 @@ export async function payForResource(
      * twice, once on each rail.
      */
     maxCreditUsd?: number;
+    /**
+     * Who owes for this drawdown. Passed in so it can be the agent's own wallet
+     * rather than a Float-held account: a repayment Float both signs and
+     * receives is a transfer between its own pockets, and proves nothing about
+     * anyone's intention to pay. Falls back to the configured borrower when the
+     * caller has no agent wallet of its own.
+     */
+    borrower?: Identity;
   }
 ): Promise<Receipt> {
   const buyer = agent();
@@ -151,7 +159,7 @@ export async function payForResource(
     }
 
     // The borrower commits to repayment before Float is out of pocket.
-    const who = borrower();
+    const who = opts?.borrower ?? borrower();
 
     if (BATCHING) {
       const { tranche: t, parkedNow } = await drawOnTranche({

@@ -46,7 +46,13 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "x-float-payer-secret": process.env.FLOAT_PAYER_SECRET ?? "",
       },
-      body: JSON.stringify({ url, maxCreditUsd: allowance }),
+      body: JSON.stringify({
+        url,
+        maxCreditUsd: allowance,
+        // Name the agent so it signs its own repayment. Omitted for a browser
+        // session, which has no agent wallet behind it.
+        ...(grant?.hederaAccountId ? { borrowerId: grant.hederaAccountId } : {}),
+      }),
       // A scheduled repayment plus a settlement is several round trips to
       // consensus; this is not a fast path.
       signal: AbortSignal.timeout(120_000),

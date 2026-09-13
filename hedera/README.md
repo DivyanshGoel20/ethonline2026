@@ -339,6 +339,47 @@ executed. So a default is not an error anyone has to report — it is a schedule
 that ran and moved nothing, visible to anyone who looks. Nothing is seized and
 no penalty is charged. `npm run hedera:probe-default` reproduces it.
 
+## The agent owes, not Float
+
+An agent reading the terms noticed the repayment debited an account that was not
+its own. The truth was worse than it could see: the borrower and the treasury
+were both Float-held, keys sitting in the same `.env`. Float was scheduling a
+transfer from one of its pockets to another. The mechanism fired on time and
+proved nothing, because a pre-commitment only means something when the party
+committing is the one that owes.
+
+Agents are minted their own Hedera wallet now, and that wallet signs and is
+debited. Decoded from the inner transfer of two schedules, before and after:
+
+```
+old  0.0.10522449  debits 0.0.10509545   <- a Float-held account
+new  0.0.10522712  debits 0.0.10522706   <- the agent's own wallet
+```
+
+That turns the parked transfer into a real claim on the agent's future balance.
+One ECDSA key gives the agent a `0.0.x` on Hedera and a `0x…` on Arc, so it is
+one agent on two rails rather than two that happen to be operated together.
+
+### Both endings, on one run
+
+`npm run hedera:lifecycle` mints two agents with nothing, has both borrow
+against the same human's line, then pays one for its work and leaves the other
+idle:
+
+```
+earner  0.0.10522731  SUCCESS                      token_moves=2
+idler   0.0.10522732  INSUFFICIENT_TOKEN_BALANCE   token_moves=0
+```
+
+The earner went 0.015 → 0.005 USDC: consensus collected the debt out of its
+earnings, unattended. The idler still holds nothing, and its schedule is one
+that ran and moved nothing — a default anyone can check, rather than a number
+Float asserts.
+
+The one piece of theatre is the buyer: a closed demo has no third party, so
+Float's treasury stands in for the customer paying the earner. The payment
+itself is real and on chain.
+
 ## Verified on testnet
 
 Not a dry run. Operator `0.0.7975935`, run on 12-13 September 2026.
