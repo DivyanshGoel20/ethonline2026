@@ -34,6 +34,17 @@
   --shadow: rgba(23, 21, 15, 0.14);
   --scrim: rgba(23, 21, 15, 0.55);
 
+  /* The primary fill. A token because "ink on paper" inverts to "near-white
+     slab", which on a dark ground is the loudest thing on screen rather than
+     the quiet default it is here. */
+  --solid-bg: var(--ink);
+  --solid-fg: var(--paper);
+
+  /* Type that sits on top of --sea. Paper here, because Arc's sea is the
+     darker of the two; a rail whose sea is deep on a dark ground needs the
+     opposite and cannot just borrow --paper. */
+  --on-sea: var(--paper);
+
   /* What the rail switch is worth saying in words, set per rail below. */
   --rail-name: "Arc";
 
@@ -66,35 +77,52 @@
 [data-rail="hedera"] {
   color-scheme: dark;
 
-  --paper: #15131d;
-  --sunk: #1c1926;
-  --band: #262234;
+  /* Near-neutral slate rather than ink-violet. The first attempt tinted the
+     ground itself purple, which made every surface compete with the accent. */
+  --paper: #171820;
+  --sunk: #1e1f28;
+  --band: #282a35;
 
-  --ink: #ece9f5;
-  --ink2: #a8a2c0;
-  --ink3: #767094;
+  /* Warm-grey rather than white. Arc's ink is not black and this should not be
+     bleach - the pairing is what keeps both rails feeling like one product. */
+  --ink: #e6e4de;
+  --ink2: #9d9aa4;
+  --ink3: #6d6b76;
 
-  --rule: #332e47;
-  --hair: #241f33;
+  --rule: #313340;
+  --hair: #23252f;
 
-  /* Violet where Arc has marine. Hedera's own colour, pulled down into this
-     palette rather than used at brand strength. */
-  --sea: #7b68ee;
-  --sea-lift: #9b8cf5;
-  --flare: #e0924f;
-  --red: #ef6a54;
+  /* Dusty periwinkle, not electric violet. Arc's marine is deep and quiet at
+     roughly a third the chroma of a pure blue; this is the same restraint
+     applied cool - Hedera's colour is present without shouting it. */
+  /* Deep indigo, not lavender. The first pass made the sea lighter than the
+     ground it sits in, so the tank read as glowing rather than holding any
+     depth - on Arc the water is the darker of the two, and that relationship
+     is what makes it look like water at all. */
+  --sea: #3c3866;
+  --sea-lift: #4e4980;
+  --on-sea: #ddd9ea;
+  /* Muted amber against the burnt sienna Arc uses, lifted only enough to
+     survive a dark ground. */
+  --flare: #ad7950;
+  --red: #c46d5f;
 
   /* Ink-coloured shadow vanishes on a dark ground; this one is cast in black
      and carries further, so the hard edge survives the inversion. */
-  --shadow: rgba(0, 0, 0, 0.55);
-  --scrim: rgba(8, 7, 12, 0.72);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --scrim: rgba(10, 10, 14, 0.7);
+
+  /* The accent carries the primary action instead of raw ink, which at this
+     lightness would be a white block. */
+  --solid-bg: #4b4870;
+  --solid-fg: #eeecf4;
 
   --rail-name: "Hedera";
   /* Dated, discrete obligations rather than a continuous flow. */
   --rail-band-texture: repeating-linear-gradient(
     90deg,
-    var(--paper) 0 2px,
-    transparent 2px 14px
+    var(--paper) 0 1.5px,
+    transparent 1.5px 26px
   );
 }
 
@@ -116,7 +144,7 @@ body {
 
 ::selection {
   background: var(--sea);
-  color: var(--paper);
+  color: var(--on-sea);
 }
 
 :focus-visible {
@@ -252,7 +280,7 @@ body {
 
   .rail-seg[data-on="true"] {
     background: var(--sea);
-    color: var(--paper);
+    color: var(--on-sea);
   }
 
   .rail-seg-name {
@@ -324,14 +352,14 @@ body {
   }
 
   .btn-solid {
-    border-color: var(--ink);
-    background: var(--ink);
-    color: var(--paper);
+    border-color: var(--solid-bg);
+    background: var(--solid-bg);
+    color: var(--solid-fg);
   }
   .btn-solid:hover:not(:disabled) {
     background: var(--sea);
     border-color: var(--sea);
-    color: var(--paper);
+    color: var(--on-sea);
   }
 
   .btn-flare {
