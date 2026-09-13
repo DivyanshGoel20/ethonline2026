@@ -28,6 +28,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { cancelRepayment, scheduleRepayment, settleEarly } from "./scheduled";
 import { borrower as defaultBorrower, fromUnits, toUnits, type Identity } from "./config";
+import { identityFor } from "./agentWallets";
 
 export interface Tranche {
   scheduleId: string;
@@ -106,6 +107,9 @@ export async function drawOnTranche(params: {
   dueInSeconds: number;
   borrower?: Identity;
   ceilingUsd?: number;
+  /** Passed through: a tranche is one schedule, signed the same two ways. */
+  custody?: "float" | "borrower";
+  onCreated?: (scheduleId: string) => void | Promise<void>;
 }): Promise<{ tranche: Tranche; parkedNow: boolean }> {
   const who = params.borrower ?? defaultBorrower();
   const amount = round6(params.amountUsd);
@@ -122,6 +126,8 @@ export async function drawOnTranche(params: {
     amount: fromUnits(toUnits(ceiling.toFixed(6))),
     dueInSeconds: params.dueInSeconds,
     memo: `Float tranche, ceiling ${ceiling.toFixed(6)} USDC`,
+    custody: params.custody,
+    onCreated: params.onCreated,
   });
 
   const row: Tranche = {
@@ -169,7 +175,31 @@ export async function closeTranche(
   if (!row) throw new Error(`no such tranche ${scheduleId}`);
   if (row.status === "closed") throw new Error(`tranche ${scheduleId} is already closed`);
 
-  const who = opts?.borrower ?? defaultBorrower();
+  /**
+   * The account that drew the credit is the account that settles it.
+   *
+   * This fell back to the configured borrower, so closing a tranche belonging
+   * to an agent debited Float's own default account instead - the agent's debt
+   * was quietly paid by someone else, which is the "Float owing Float" problem
+   * reappearing at the other end of the loan. Verified the hard way: a close
+   * for 0.015 drawn by 0.0.10522992 came out of 0.0.10509545.
+   *
+   * A borrower Float does not custody cannot be closed this way at all. The
+   * settlement is a plain transfer out of their account and only they can
+   * authorise it, so Float has nothing to sign with - and moving the amount
+   * from any account it *can* sign for would be the same bug again.
+   */
+  const who =
+    opts?.borrower ??
+    identityFor(row.borrowerId) ??
+    (row.borrowerId === defaultBorrower().id ? defaultBorrower() : null);
+
+  if (!who) {
+    throw new Error(
+      `Float holds no key for ${row.borrowerId}, so it cannot settle this tranche on their ` +
+        `behalf. The borrower settles it themselves, or it executes at its ceiling on ${row.dueAt}.`
+    );
+  }
 
   let transactionId: string | null = null;
   let scheduleDeleted: boolean;

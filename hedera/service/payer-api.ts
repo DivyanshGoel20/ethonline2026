@@ -138,14 +138,23 @@ app.post("/pay", async (req, res) => {
   const agentEvmAddress = String(req.body?.agentEvmAddress || "");
   const humanOwner = String(req.body?.humanOwner || "");
 
-  if (borrowerId && !identityFor(borrowerId)) {
-    return res.status(400).json({
-      success: false,
-      error: `No wallet on file for ${borrowerId}; it cannot sign its own repayment.`,
-    });
-  }
-
+  /**
+   * A borrower Float has no key for is not an error any more.
+   *
+   * Refusing one made custody mandatory: the only accounts that could borrow
+   * were the ones whose keys Float already held, which is exactly the
+   * arrangement the parked repayment exists to avoid. Now an account Float does
+   * not custody borrows by signing for itself - Float creates the schedule,
+   * relays the id, and waits to see the signature before settling with the
+   * seller. Nothing is paid out against an obligation nobody accepted.
+   */
   let asAgent = borrowerId ? identityFor(borrowerId) : null;
+  let custody: "float" | "borrower" = "float";
+
+  if (borrowerId && !asAgent) {
+    asAgent = { id: borrowerId, key: "" };
+    custody = "borrower";
+  }
 
   if (!asAgent && agentEvmAddress) {
     let w = walletForEvm(agentEvmAddress);
@@ -179,7 +188,18 @@ app.post("/pay", async (req, res) => {
   try {
     const receipt = await payForResource(url, {
       maxCreditUsd,
-      ...(asAgent ? { borrower: asAgent } : {}),
+      ...(asAgent ? { borrower: asAgent, custody } : {}),
+      // Relayed the instant it exists. A borrower signing for itself cannot act
+      // on a schedule it has not been told about, and Float is blocking on that
+      // signature - so this has to go out before the wait, not after it.
+      onScheduleCreated: (scheduleId) => {
+        if (custody === "borrower") {
+          console.log(
+            `  awaiting ${asAgent!.id} to sign ${scheduleId} - ` +
+              `npm run hedera:sign -- ${scheduleId} --as ${asAgent!.id} --key <their key>`
+          );
+        }
+      },
     });
 
     // Index the obligation so it can be found and cancelled later. Without
@@ -271,7 +291,9 @@ app.post("/tranche/close", async (req, res) => {
   }
 
   try {
-    const result = await closeTranche(scheduleId, { borrower: borrower() });
+    // No borrower passed: the tranche knows whose it is, and passing the
+    // configured default here is what made someone else pay.
+    const result = await closeTranche(scheduleId);
     markSettled(scheduleId, "settled", result.transactionId ?? undefined);
 
     res.json({
