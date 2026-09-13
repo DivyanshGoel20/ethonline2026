@@ -73,8 +73,15 @@ app.post("/pay", async (req, res) => {
   const url = String(req.body?.url || "");
   if (!url) return res.status(400).json({ error: "Missing url" });
 
+  // How much credit the caller's human actually has left, decided on the Arc
+  // side where the facility lives. Passed in rather than looked up here: this
+  // process has no notion of World identity, and guessing would be worse than
+  // asking.
+  const maxCreditUsd =
+    req.body?.maxCreditUsd === undefined ? undefined : Number(req.body.maxCreditUsd);
+
   try {
-    const receipt = await payForResource(url);
+    const receipt = await payForResource(url, { maxCreditUsd });
 
     // Index the obligation so it can be found and cancelled later. Without
     // this the schedule id exists only in a log line, and settling early is

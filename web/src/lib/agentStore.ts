@@ -1,4 +1,5 @@
 import fs from "fs";
+import { railDebtTotal } from "./railDebt";
 import { writeJsonAtomic } from "./atomicWrite";
 import path from "path";
 import { Agent } from "@/types";
@@ -121,8 +122,12 @@ export function getHumanFacilityStats(
   const humanAgents = getAgentsByOwner(humanOwner, agentBookHumanId);
   const tier = getHumanCreditTier(humanOwner);
   const totalCreditLimit = tier.creditLimit;
+  // Debt drawn on another rail counts against the same limit. Without this a
+  // human could exhaust the line on Arc and borrow it again on Hedera, because
+  // headroom was computed only from Arc agents.
   const totalOutstandingDebt = Math.round(
-    humanAgents.reduce((sum, a) => sum + (a.outstandingDebt || 0), 0) * 10000
+    (humanAgents.reduce((sum, a) => sum + (a.outstandingDebt || 0), 0) +
+      railDebtTotal(humanOwner)) * 10000
   ) / 10000;
   const totalBorrowed = Math.round(
     humanAgents.reduce((sum, a) => sum + (a.totalBorrowed || 0), 0) * 10000

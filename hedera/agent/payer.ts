@@ -87,7 +87,18 @@ async function quote(url: string): Promise<{ amount: bigint; raw: any } | null> 
   return { amount: BigInt(option.amount ?? option.maxAmountRequired ?? "0"), raw: option };
 }
 
-export async function payForResource(url: string): Promise<Receipt> {
+export async function payForResource(
+  url: string,
+  opts?: {
+    /**
+     * The human's remaining credit on Arc. Float declines to step in beyond it.
+     * Arc is the facility of record for both rails, so a Hedera drawdown has to
+     * respect the same limit an Arc one would - otherwise the line can be spent
+     * twice, once on each rail.
+     */
+    maxCreditUsd?: number;
+  }
+): Promise<Receipt> {
   const buyer = agent();
   const float = operator();
   const topic = optionalTopicId();
@@ -110,6 +121,14 @@ export async function payForResource(url: string): Promise<Receipt> {
   let scheduled: ScheduledRepayment | undefined;
 
   if (!canSelfFund) {
+    const priceUsd = Number(fromUnits(price));
+    if (opts?.maxCreditUsd !== undefined && priceUsd > opts.maxCreditUsd) {
+      throw new Error(
+        `Float credit declined: ${fromUnits(price)} USDC exceeds the remaining ` +
+          `facility headroom of ${opts.maxCreditUsd.toFixed(2)} USDC.`
+      );
+    }
+
     // The borrower commits to repayment before Float is out of pocket.
     const who = borrower();
 

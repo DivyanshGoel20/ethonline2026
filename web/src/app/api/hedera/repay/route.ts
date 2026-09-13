@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getHuman, unauthenticated } from "@/lib/session";
 import { HEDERA_PAYER_URL } from "@/lib/rails";
+import { settleRailDebtBySchedule } from "@/lib/railDebt";
+import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 
 /**
  * Settle a parked repayment before its date.
@@ -9,7 +11,8 @@ import { HEDERA_PAYER_URL } from "@/lib/rails";
  * and anyone who paid early paid twice, because nothing tore up the cheque.
  */
 export async function POST(req: NextRequest) {
-  if (!getHuman(req)) return unauthenticated();
+  const human = getHuman(req);
+  if (!human) return unauthenticated();
 
   const { scheduleId } = await req.json().catch(() => ({ scheduleId: "" }));
   if (!scheduleId) {
@@ -24,6 +27,13 @@ export async function POST(req: NextRequest) {
       signal: AbortSignal.timeout(120_000),
     });
     const data = await res.json().catch(() => ({}));
+
+    // Collected on Hedera, so the headroom comes back on Arc.
+    if (res.ok && data?.success) {
+      settleRailDebtBySchedule(scheduleId);
+      invalidateTelemetryCache(human);
+    }
+
     return NextResponse.json(data, { status: res.ok ? 200 : 400 });
   } catch (err: any) {
     return NextResponse.json(
