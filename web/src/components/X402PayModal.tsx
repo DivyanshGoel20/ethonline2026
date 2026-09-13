@@ -303,37 +303,55 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
       )}
 
       {/* the sequence */}
-      <div className="relative pl-8">
-        <div
-          className="absolute left-[4px] top-2"
-          style={{ width: 1, background: "var(--rule)", height: "calc(100% - 24px)" }}
-        />
-        <div
-          className="absolute left-[4px] top-2 transition-[height] duration-500"
-          style={{ width: 1, background: "var(--sea)", height: `${Math.min(step, 4) * 25}%` }}
-        />
-
+      {/*
+        The rail is drawn per row rather than as one absolutely-positioned line.
+        A single spine has to guess where the dots are - it sat 4px left of their
+        centres, overshot the last one, and its progress height assumed every row
+        was the same height, which stops being true the moment a line wraps.
+        Here each connector stretches between the dot above it and the dot below,
+        so alignment is structural.
+      */}
+      <div className="flex flex-col">
         {STEPS.map((s, i) => {
           const on = step >= i + 1;
+          const nextOn = step >= i + 2;
           const flare = i === 2;
+          const last = i === STEPS.length - 1;
+          const colour = flare ? "var(--flare)" : "var(--sea)";
+
           return (
             <div
               key={s.k}
-              className="relative mb-4 last:mb-0 transition-all duration-500"
+              className="flex gap-5 transition-all duration-500"
               style={{ opacity: on ? 1 : 0.25, transform: on ? "none" : "translateY(4px)" }}
             >
-              <span
-                className="absolute rounded-full"
-                style={{
-                  left: -28,
-                  top: 5,
-                  width: 9,
-                  height: 9,
-                  border: `1px solid ${on ? (flare ? "var(--flare)" : "var(--sea)") : "var(--rule)"}`,
-                  background: on ? (flare ? "var(--flare)" : "var(--sea)") : "transparent",
-                }}
-              />
-              <span style={{ fontSize: 14 }}>{s.line}</span>
+              <div className="flex flex-col items-center shrink-0" style={{ width: 9 }}>
+                <span
+                  className="rounded-full shrink-0"
+                  style={{
+                    width: 9,
+                    height: 9,
+                    marginTop: 5,
+                    border: `1px solid ${on ? colour : "var(--rule)"}`,
+                    background: on ? colour : "transparent",
+                  }}
+                />
+                {!last && (
+                  <span
+                    className="transition-colors duration-500"
+                    style={{
+                      flex: 1,
+                      width: 1,
+                      marginTop: 3,
+                      background: nextOn ? "var(--sea)" : "var(--rule)",
+                    }}
+                  />
+                )}
+              </div>
+
+              <div style={{ paddingBottom: last ? 0 : 18 }}>
+                <span style={{ fontSize: 14 }}>{s.line}</span>
+              </div>
             </div>
           );
         })}
