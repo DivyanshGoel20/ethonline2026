@@ -21,7 +21,8 @@ import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactHederaScheme } from "@x402/hedera/exact/server";
 
-import { FACILITATOR_URL, NETWORK, USDC, USDC_DECIMALS, seller } from "../src/config";
+import { FACILITATOR_URL, NETWORK, USDC, USDC_DECIMALS, optionalTopicId, seller } from "../src/config";
+import { uaidForAgent, type AgentFacts } from "../src/hcs14";
 import { riskFor, universe } from "./risk";
 
 const PORT = Number(process.env.HEDERA_SERVICE_PORT || 4021);
@@ -69,7 +70,74 @@ const resourceServer = new x402ResourceServer(facilitator).register(
   })
 );
 
+/**
+ * This service's own identity, under HCS-14.
+ *
+ * Derived rather than assigned: the same facts produce the same UAID from
+ * anywhere, so another agent that has only seen the manifest can confirm the
+ * id belongs to the service it describes. `registry: "self"` is the honest
+ * value - Float is not listed in a shared registry, and claiming one it is not
+ * in would make the identifier a lie in a machine-readable format.
+ */
+const SERVICE_FACTS: AgentFacts = {
+  registry: "self",
+  name: "Float Risk Feed",
+  version: "1.0.0",
+  protocol: "x402",
+  // CAIP-10, which is what the standard prefers for a native id.
+  nativeId: `hedera:testnet:${seller().id}`,
+  // 0 = data provision, 17 = financial/risk signal, per the HCS-14 skill codes.
+  skills: [0, 17],
+};
+
+export const SERVICE_UAID = uaidForAgent(SERVICE_FACTS, { domain: process.env.HEDERA_SERVICE_DOMAIN });
+
 const app = express();
+
+/**
+ * The discovery manifest.
+ *
+ * Free and unauthenticated on purpose: an agent cannot decide whether to buy
+ * from a service it cannot read first. Everything needed to complete a purchase
+ * without a human reading documentation is here - who to pay, on what network,
+ * in which asset, through which facilitator, at what price, and how the price
+ * varies with the request.
+ */
+app.get("/.well-known/agent", (_req, res) => {
+  const topic = optionalTopicId();
+  res.json({
+    uaid: SERVICE_UAID,
+    identity: { standard: "HCS-14", target: "aid", facts: SERVICE_FACTS },
+    service: SERVICE_FACTS.name,
+    version: SERVICE_FACTS.version,
+    payment: {
+      protocol: "x402",
+      scheme: "exact",
+      network: NETWORK,
+      facilitator: FACILITATOR_URL,
+      asset: { token: USDC, symbol: "USDC", decimals: USDC_DECIMALS },
+      payTo: seller().id,
+      pricing: {
+        model: "per-record",
+        perRecordUsd: PRICE_PER_RECORD,
+        maxRecords: MAX_RECORDS,
+        formula: "records * perRecordUsd",
+      },
+    },
+    resources: [
+      {
+        path: "/risk",
+        method: "GET",
+        params: { records: `1-${MAX_RECORDS}` },
+        priced: "per-record",
+        description: "Credit risk records for autonomous agents, priced by the record.",
+      },
+    ],
+    auditTrail: topic
+      ? { standard: "HCS", topicId: topic, mirror: `https://hashscan.io/testnet/topic/${topic}` }
+      : null,
+  });
+});
 
 app.get("/", (_req, res) => {
   res.json({
@@ -84,7 +152,8 @@ app.get("/", (_req, res) => {
       maxRecords: MAX_RECORDS,
       example: `GET /risk?records=5 costs ${money(PRICE_PER_RECORD * 5)}`,
     },
-    endpoints: { free: ["/", "/catalog"], paid: ["/risk?records=N"] },
+    uaid: SERVICE_UAID,
+    endpoints: { free: ["/", "/catalog", "/.well-known/agent"], paid: ["/risk?records=N"] },
   });
 });
 

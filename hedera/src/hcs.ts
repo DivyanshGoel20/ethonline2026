@@ -25,7 +25,23 @@ export type TrailEntry =
       dueAt: string;
     }
   | { kind: "payment"; agent: string; resource: string; amount: string; transactionId: string }
-  | { kind: "repayment"; human: string; amount: string; scheduleId: string; transactionId?: string };
+  | { kind: "repayment"; human: string; amount: string; scheduleId: string; transactionId?: string }
+  /**
+   * An HCS-14 identity announcement. Publishing the UAID alongside the facts it
+   * was derived from is what makes it an on-chain identity rather than a string
+   * a server happens to serve: anyone can recompute the hash from the facts in
+   * the message and check it matches, with a consensus timestamp on when the
+   * claim was made.
+   */
+  | {
+      kind: "identity";
+      uaid: string;
+      nativeId: string;
+      name: string;
+      protocol: string;
+      version: string;
+      skills: number[];
+    };
 
 /** Creates the topic Float writes its trail to. Run once, via scripts/setup.ts. */
 export async function createTopic(as: Identity = operator()): Promise<string> {
