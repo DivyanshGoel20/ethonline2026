@@ -149,6 +149,39 @@ npm run hedera:demo       # the agent: one call it can afford, one it cannot
 | fee payer | `0.0.7162784` (Blocky402's, from `/supported`) |
 | schedule ceiling | 2 months |
 
+## Giving the wallet to a real agent
+
+The rail is reachable as a tool, not just a script, so a general-purpose agent
+can be handed a wallet and left to get on with it.
+
+```bash
+npm run hedera:service                    # the paid feed
+npm run float:fetch -- --wallet           # who am I, what do I have
+npm run float:fetch -- --records 3        # buy some
+```
+
+`.mcp.json` registers the same thing as an MCP server, so a Claude Code session
+sees `float_wallet`, `float_catalogue` and `float_fetch` as tools it can call
+directly.
+
+The wallet it runs as holds **zero USDC and zero HBAR**. It needs no gas because
+Blocky402 is the fee payer on every settlement, and it needs no balance because
+Float covers what it cannot. An account that holds nothing cannot self-fund a
+single call, so every purchase exercises the credit path: a dated repayment is
+parked on consensus, then the invoice is settled. The agent never learns it was
+broke — it asks for data and gets data.
+
+Two details that only show up when you build this:
+
+- MCP speaks JSON-RPC over **stdout**, and the payer logs its progress to stdout
+  like any CLI. Left alone, the first `quote 0.005 USDC` line corrupts the
+  protocol frame and the client drops the connection. `console.log` is rebound
+  to stderr before the payer is reachable.
+- The agent's key is **not** in `.mcp.json`, which is committed. The server reads
+  `FLOAT_MCP_AGENT_ID` / `FLOAT_MCP_AGENT_KEY` from the gitignored `.env` and
+  redirects `agent()` at runtime, so the funded demo wallet and the empty agent
+  wallet coexist without either config knowing about the other.
+
 ## Verified on testnet
 
 Not a dry run. Operator `0.0.7975935`, run on 12 September 2026.

@@ -19,7 +19,9 @@
     "hedera:demo": "tsx --env-file=.env hedera/scripts/demo.ts",
     "hedera:balance": "tsx --env-file=.env hedera/scripts/set-agent-balance.ts",
     "hedera:watch": "tsx --env-file=.env hedera/scripts/watch-schedule.ts",
-    "hedera:payer": "tsx --env-file=.env hedera/service/payer-api.ts"
+    "hedera:payer": "tsx --env-file=.env hedera/service/payer-api.ts",
+    "float:fetch": "tsx --env-file=.env hedera/agent/cli.ts",
+    "float:mcp": "tsx --env-file=.env hedera/mcp/server.ts"
   },
   "keywords": [
     "ai-agents",
@@ -36,6 +38,7 @@
   "license": "MIT",
   "dependencies": {
     "@circle-fin/x402-batching": "^3.4.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@types/express": "^5.0.6",
     "@worldcoin/agentkit": "^0.2.1",
     "@x402/core": "^2.25.0",

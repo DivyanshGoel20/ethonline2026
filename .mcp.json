@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "float": {
+      "command": "npx",
+      "args": ["tsx", "--env-file=.env", "hedera/mcp/server.ts"],
+      "env": {}
+    }
+  }
+}
