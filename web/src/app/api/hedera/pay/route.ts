@@ -9,10 +9,11 @@ import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 /**
  * Buy something on the Hedera rail.
  *
- * Gated on a verified human rather than on agent ownership: this rail pays from
- * a single configured Hedera identity rather than from one of the Arc agents,
- * so there is no per-agent key to check. The World session is still the bar -
- * spending money always is.
+ * Gated on a verified human. The agent that spends is named where the caller
+ * can name one - by Hedera id from a mandate, by Arc address from the browser -
+ * so the repayment parked on consensus is signed by the agent that owes it.
+ * Only a caller who names no agent at all falls back to the configured
+ * borrower, which is Float promising itself.
  */
 export async function POST(req: NextRequest) {
   // Two ways to be a verified human here. A browser carries the session cookie.
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
   const human = getHuman(req) ?? grant?.human ?? null;
   if (!human) return unauthenticated();
 
-  const { url } = await req.json().catch(() => ({ url: "" }));
+  const { url, agentAddress } = await req.json().catch(() => ({ url: "", agentAddress: "" }));
   if (!url) {
     return NextResponse.json({ success: false, error: "Missing resource url" }, { status: 400 });
   }
@@ -49,9 +50,16 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         url,
         maxCreditUsd: allowance,
-        // Name the agent so it signs its own repayment. Omitted for a browser
-        // session, which has no agent wallet behind it.
-        ...(grant?.hederaAccountId ? { borrowerId: grant.hederaAccountId } : {}),
+        // Name the agent so it signs its own repayment. A mandate carries the
+        // Hedera id directly; a browser knows the same agent only by its Arc
+        // address, which the payer resolves to the same wallet because one key
+        // derives both. Naming it either way is what keeps the obligation the
+        // agent's own rather than Float promising itself something.
+        ...(grant?.hederaAccountId
+          ? { borrowerId: grant.hederaAccountId }
+          : agentAddress
+            ? { agentEvmAddress: agentAddress, humanOwner: human }
+            : {}),
       }),
       // A scheduled repayment plus a settlement is several round trips to
       // consensus; this is not a fast path.

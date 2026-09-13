@@ -32,6 +32,18 @@ export type AgentWallet = {
   label: string;
   /** EVM address derived from the same key, so one agent spans both rails. */
   evmAddress: string;
+  /**
+   * The Arc agent this wallet borrows on behalf of, when it is not the same
+   * key.
+   *
+   * An agent minted here spans both rails from one key and needs no such
+   * link. An agent that already existed on Arc cannot: Float does not hold the
+   * key that made its address, so it cannot derive the matching Hedera account
+   * and must not pretend to. It gets a companion wallet instead - a second
+   * identity, same human, explicitly recorded as standing in for the first
+   * rather than silently filed under its address.
+   */
+  actsFor?: string;
   createdAt: number;
 };
 
@@ -69,6 +81,25 @@ export const findWallet = (accountId: string): AgentWallet | null =>
 export const walletsFor = (humanOwner: string): AgentWallet[] =>
   readAll().filter((w) => w.humanOwner.toLowerCase() === humanOwner.toLowerCase());
 
+/**
+ * The same agent, named by its Arc address.
+ *
+ * One key derives both identities, so an agent the dashboard knows as an EVM
+ * address is the same borrower this file knows as 0.0.x. Without this lookup
+ * the browser had no way to say which agent was spending - it holds the Arc
+ * address and nothing else - and every session drawdown fell back to the
+ * configured borrower, which is Float owing Float.
+ */
+export const walletForEvm = (evmAddress: string): AgentWallet | null => {
+  const want = (evmAddress || "").toLowerCase();
+  if (!want) return null;
+  return (
+    readAll().find(
+      (w) => w.evmAddress.toLowerCase() === want || (w.actsFor || "").toLowerCase() === want
+    ) ?? null
+  );
+};
+
 /** The identity the payer signs a repayment with. */
 export function identityFor(accountId: string): Identity | null {
   const w = findWallet(accountId);
@@ -85,6 +116,8 @@ export function identityFor(accountId: string): Identity | null {
 export async function provisionWallet(params: {
   humanOwner: string;
   label: string;
+  /** Set when standing in for an Arc agent whose key Float does not hold. */
+  actsFor?: string;
 }): Promise<AgentWallet> {
   const client = clientFor(operator());
   try {
@@ -108,6 +141,7 @@ export async function provisionWallet(params: {
       // Same key, other rail. The agent is one identity with two addresses
       // rather than two agents that happen to be operated together.
       evmAddress: `0x${key.publicKey.toEvmAddress()}`,
+      ...(params.actsFor ? { actsFor: params.actsFor } : {}),
       createdAt: Date.now(),
     };
 

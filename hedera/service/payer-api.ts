@@ -28,7 +28,7 @@ import express from "express";
 const PAYER_SECRET = process.env.FLOAT_PAYER_SECRET;
 
 import { payForResource } from "../agent/payer";
-import { identityFor, provisionWallet } from "../src/agentWallets";
+import { identityFor, provisionWallet, walletForEvm } from "../src/agentWallets";
 import { settleEarly } from "../src/scheduled";
 import { append } from "../src/hcs";
 import { liveRepayments, findParked, isStillParked, markSettled, recordParked } from "./scheduleStore";
@@ -130,12 +130,50 @@ app.post("/pay", async (req, res) => {
   // agent sign its own repayment. Without one it falls back to the configured
   // borrower - which is Float owing Float, a promise it made to itself.
   const borrowerId = String(req.body?.borrowerId || "");
-  const asAgent = borrowerId ? identityFor(borrowerId) : null;
-  if (borrowerId && !asAgent) {
+
+  // A browser holds the agent's Arc address and nothing else - the Hedera id
+  // lives here. Both spellings name the same wallet, because one key derives
+  // both, so a session drawdown is signed by the same agent a mandate would
+  // have named rather than falling through to the configured borrower.
+  const agentEvmAddress = String(req.body?.agentEvmAddress || "");
+  const humanOwner = String(req.body?.humanOwner || "");
+
+  if (borrowerId && !identityFor(borrowerId)) {
     return res.status(400).json({
       success: false,
       error: `No wallet on file for ${borrowerId}; it cannot sign its own repayment.`,
     });
+  }
+
+  let asAgent = borrowerId ? identityFor(borrowerId) : null;
+
+  if (!asAgent && agentEvmAddress) {
+    let w = walletForEvm(agentEvmAddress);
+
+    // An agent that predates this rail has no Hedera account, and Float cannot
+    // derive one - it does not hold the key behind the Arc address. Minting a
+    // companion on first use is what lets an existing agent borrow here at all,
+    // and the alternative is worse than either refusing or pretending: falling
+    // back to the configured borrower means Float signs a promise to itself.
+    if (!w && humanOwner) {
+      w = await provisionWallet({
+        humanOwner,
+        label: `arc:${agentEvmAddress.slice(0, 10)}`,
+        actsFor: agentEvmAddress,
+      });
+      console.log(`  minted companion wallet ${w.id} for Arc agent ${agentEvmAddress}`);
+    }
+
+    if (!w) {
+      return res.status(400).json({
+        success: false,
+        error:
+          `No Hedera wallet for agent ${agentEvmAddress}, and no human named to ` +
+          `mint one for. It cannot sign its own repayment.`,
+        code: "no_hedera_wallet",
+      });
+    }
+    asAgent = { id: w.id, key: w.key };
   }
 
   try {

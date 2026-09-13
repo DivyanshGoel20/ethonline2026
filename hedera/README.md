@@ -287,6 +287,33 @@ open rather than guessing. `POST /api/hedera/reconcile` does one human;
 `npm run hedera:reconcile` sweeps everyone, for a cron. Both are session-only —
 a spending mandate can spend, not declare its own debts paid.
 
+### The browser was still borrowing as Float
+
+Naming the agent fixed who owes, but only for a caller holding a mandate - a
+token carries the Hedera account id directly. A browser holds the agent's Arc
+address and nothing else, so every drawdown from the dashboard fell back to the
+configured borrower: Float signing a promise to Float, which fires on time and
+proves nothing.
+
+Both spellings now reach the same wallet. An agent minted here spans both rails
+from one key, so its Arc address resolves to its Hedera account directly. An
+agent that already existed on Arc cannot - Float does not hold the key behind
+that address and will not pretend to derive one - so it gets a **companion**
+wallet: a second identity, same human, recorded as standing in for the first
+rather than quietly filed under its address.
+
+```
+  agent 0x36e27197… draws on Hedera for the first time
+  minted companion wallet 0.0.10522992 for Arc agent 0x36e271970fa654…
+
+  schedule   0.0.10522995
+  borrowerId 0.0.10522992   <- the agent, not 0.0.10509545
+```
+
+The companion's public key is among the schedule's signatories, so the parked
+repayment is signed by the account it debits. A second drawdown for the same
+agent reuses the wallet rather than minting another.
+
 ### One cheque for a hundred payments
 
 Parking a schedule per payment repeated the mistake Arc made with per-drawdown

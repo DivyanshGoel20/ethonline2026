@@ -113,11 +113,10 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
         headers: { "Content-Type": "application/json" },
         // humanProfileId is deliberately absent: the route takes the human from
         // the World session, because naming one in the body meant billing them.
-        // The Hedera rail pays from its own configured identity, so it needs
-        // only the resource.
-        body: JSON.stringify(
-          rail === "hedera" ? { url } : { url, agentAddress: agent.address }
-        ),
+        // The agent goes to both rails now - on Hedera it names which wallet
+        // signs the parked repayment, so the debt belongs to the agent that
+        // incurred it rather than to Float's own account.
+        body: JSON.stringify({ url, agentAddress: agent.address }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
