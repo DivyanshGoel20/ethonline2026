@@ -287,6 +287,41 @@ open rather than guessing. `POST /api/hedera/reconcile` does one human;
 `npm run hedera:reconcile` sweeps everyone, for a cron. Both are session-only —
 a spending mandate can spend, not declare its own debts paid.
 
+### One cheque for a hundred payments
+
+Parking a schedule per payment repeated the mistake Arc made with per-drawdown
+storage writes: a 0.005 USDC purchase cost two consensus transactions to promise
+0.005 USDC back, so the obligation was dearer than the loan.
+
+A **tranche** fixes the ratio without giving up the guarantee. Float parks one
+schedule for a ceiling, signed by the borrower up front, and settles payments
+against it until the ceiling is reached. The promise still precedes the
+spending - which is the entire reason to do this on Hedera rather than with a
+keeper bot - it is simply made once for many payments instead of once each.
+
+```
+  payment 1: PARKED new tranche 0.0.10522615  0.005000/0.050000
+  payment 2: drew on existing   0.0.10522615  0.010000/0.050000
+  payment 3: drew on existing   0.0.10522615  0.015000/0.050000
+  payment 4: drew on existing   0.0.10522615  0.020000/0.050000
+
+  schedules parked for 4 payments: 1
+```
+
+Closing collects what was drawn, not the ceiling
+([`0.0.10509545@1789299986`](https://hashscan.io/testnet/transaction/0.0.10509545-1789299986-143800418)):
+0.020000 USDC moved, the 0.050000 schedule was **deleted without ever
+executing**, and four payments were covered by one obligation.
+
+The honest cost is that a tranche left open collects its ceiling. That is why
+closing is part of the flow rather than cleanup - `POST /tranche/close`
+transfers the true amount and deletes the schedule, by the same early-settlement
+path a borrower uses. `GET /tranches` shows what is drawn against what.
+
+Off by default (`FLOAT_TRANCHE_BATCHING=true`), because a ceiling is only right
+when someone has chosen it, and the per-payment path is the one the rest of this
+document demonstrates.
+
 ### What a default actually looks like
 
 The agent also asked what happens at maturity if the borrower cannot pay, which
@@ -306,7 +341,7 @@ no penalty is charged. `npm run hedera:probe-default` reproduces it.
 
 ## Verified on testnet
 
-Not a dry run. Operator `0.0.7975935`, run on 12 September 2026.
+Not a dry run. Operator `0.0.7975935`, run on 12-13 September 2026.
 
 | what | evidence |
 |---|---|
@@ -315,9 +350,20 @@ Not a dry run. Operator `0.0.7975935`, run on 12 September 2026.
 | Repayment parked before the spend | schedule [`0.0.10509672`](https://hashscan.io/testnet/schedule/0.0.10509672), `wait_for_expiry: true` |
 | Consensus executed it, unattended | `executed_at` 2026-09-12T20:44:41Z; borrower `0.0.10509545` went 0.875000 → 0.750000 USDC |
 | Trail | topic [`0.0.10509546`](https://hashscan.io/testnet/topic/0.0.10509546), entries #11 drawdown → #12 payment → #13 repayment |
+| Repayment fired and **paid**, unattended | schedule [`0.0.10521924`](https://hashscan.io/testnet/schedule/0.0.10521924) → tx [`0.0.7975935@1789296794`](https://hashscan.io/testnet/transaction/0.0.7975935-1789296794-924233347) — `SUCCESS`, 0.005 USDC |
+| Repayment fired and **defaulted**, same morning | schedule [`0.0.10521952`](https://hashscan.io/testnet/schedule/0.0.10521952) → tx [`0.0.7975935@1789296897`](https://hashscan.io/testnet/transaction/0.0.7975935-1789296897-663112783) — `INSUFFICIENT_TOKEN_BALANCE`, 0.01 USDC |
 
 Every settlement transaction id begins `0.0.7162784` — Blocky402's fee payer,
 submitting on behalf of a payer who never held HBAR.
+
+The last two rows are the whole argument in one pair. Both schedules were parked
+the same morning, both executed on their own date with nobody watching, and both
+are stamped `executed`. Only the consensus result separates them: borrower
+`0.0.10509545` covered its 0.005 and the headroom came back; borrower
+`0.0.10521951` could not cover its 0.01, the transfer moved nothing, and the
+debt still stands. Float wrote both outcomes down without being told, by asking
+the Mirror Node rather than by being notified. Check either link — neither
+requires trusting this repository.
 
 The execution was checked with a 70-second term rather than the default week,
 so the claim that nobody has to be awake is tested rather than asserted.

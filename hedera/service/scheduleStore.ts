@@ -49,9 +49,26 @@ export function recordParked(entry: Omit<ParkedRepayment, "createdAt" | "status"
   return row;
 }
 
+/**
+ * Whether a row is still an obligation Float can act on.
+ *
+ * The stored status is not enough. Nothing marks a row settled when consensus
+ * executes it on its date - that is the point of a parked repayment, and it is
+ * also why this index goes stale on its own. A row still reading "live" an hour
+ * after its date is not parked; the network already ran it and dropped the
+ * entity, and only the Mirror Node knows whether it paid or defaulted.
+ *
+ * Treating those as live re-opened the double-charge this whole mechanism
+ * exists to prevent: they were offered for early settlement, which would
+ * transfer a second time and then fail to delete a schedule that was gone.
+ */
+export function isStillParked(row: ParkedRepayment): boolean {
+  return row.status === "live" && new Date(row.dueAt).getTime() > Date.now();
+}
+
 export function liveRepayments(borrowerId?: string): ParkedRepayment[] {
   return readAll()
-    .filter((r) => r.status === "live")
+    .filter(isStillParked)
     .filter((r) => !borrowerId || r.borrowerId === borrowerId)
     // Oldest first: the obligation closest to falling due is the one to clear.
     .sort((a, b) => a.createdAt - b.createdAt);

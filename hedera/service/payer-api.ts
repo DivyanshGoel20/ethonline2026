@@ -30,7 +30,8 @@ const PAYER_SECRET = process.env.FLOAT_PAYER_SECRET;
 import { payForResource } from "../agent/payer";
 import { settleEarly } from "../src/scheduled";
 import { append } from "../src/hcs";
-import { liveRepayments, findParked, markSettled, recordParked } from "./scheduleStore";
+import { liveRepayments, findParked, isStillParked, markSettled, recordParked } from "./scheduleStore";
+import { closeTranche, findTranche, openTranches } from "../src/tranche";
 import {
   agent,
   borrower,
@@ -111,7 +112,21 @@ app.post("/pay", async (req, res) => {
     // Index the obligation so it can be found and cancelled later. Without
     // this the schedule id exists only in a log line, and settling early is
     // impossible - the cheque stays parked and fires anyway.
-    if (receipt.scheduledRepayment) {
+    // With batching on, a payment that drew on an existing tranche parked
+    // nothing - indexing it again would invent a second obligation for one
+    // schedule. Only a freshly parked tranche is a new row, and it is recorded
+    // at its ceiling, which is what the borrower actually signed for.
+    if (receipt.tranche) {
+      if (receipt.tranche.parkedNow) {
+        recordParked({
+          scheduleId: receipt.tranche.scheduleId,
+          borrowerId: process.env.HEDERA_BORROWER_ID || "",
+          amountUsd: receipt.tranche.ceilingUsd,
+          dueAt: receipt.tranche.dueAt,
+          resource: `tranche ceiling ${receipt.tranche.ceilingUsd.toFixed(6)} USDC`,
+        });
+      }
+    } else if (receipt.scheduledRepayment) {
       recordParked({
         scheduleId: receipt.scheduledRepayment.scheduleId,
         borrowerId: process.env.HEDERA_BORROWER_ID || "",
@@ -150,6 +165,60 @@ app.get("/schedules", (_req, res) => {
   });
 });
 
+/** Open tranches, and what has been drawn against each. */
+app.get("/tranches", (_req, res) => {
+  const rows = openTranches();
+  res.json({
+    tranches: rows.map((t) => ({
+      ...t,
+      link: hashscanSchedule(t.scheduleId),
+      remainingUsd: Number((t.ceilingUsd - t.drawnUsd).toFixed(6)),
+      paymentsCovered: t.draws.length,
+      dueInMs: new Date(t.dueAt).getTime() - Date.now(),
+    })),
+    drawnUsd: Number(rows.reduce((n, t) => n + t.drawnUsd, 0).toFixed(6)),
+    ceilingUsd: Number(rows.reduce((n, t) => n + t.ceilingUsd, 0).toFixed(6)),
+  });
+});
+
+/**
+ * Close a tranche for what was actually drawn.
+ *
+ * Not housekeeping: an open tranche is parked for its ceiling, so one left to
+ * fire collects the ceiling rather than the spending. Closing transfers the
+ * true amount and deletes the schedule.
+ */
+app.post("/tranche/close", async (req, res) => {
+  const scheduleId = String(req.body?.scheduleId || "");
+  const row = scheduleId ? findTranche(scheduleId) : undefined;
+
+  if (!row) return res.status(404).json({ success: false, error: "No such tranche." });
+  if (row.status === "closed") {
+    return res.status(409).json({ success: false, error: "Already closed." });
+  }
+
+  try {
+    const result = await closeTranche(scheduleId, { borrower: borrower() });
+    markSettled(scheduleId, "settled", result.transactionId ?? undefined);
+
+    res.json({
+      success: true,
+      scheduleId,
+      collectedUsd: result.tranche.drawnUsd,
+      ceilingUsd: result.tranche.ceilingUsd,
+      paymentsCovered: result.tranche.draws.length,
+      scheduleDeleted: result.scheduleDeleted,
+      links: {
+        transaction: result.transactionId ? hashscanTx(result.transactionId) : null,
+        schedule: hashscanSchedule(scheduleId),
+      },
+    });
+  } catch (err: any) {
+    console.error("[HederaPayer]", err?.message || err);
+    res.status(400).json({ success: false, error: err?.message || "Could not close tranche" });
+  }
+});
+
 /**
  * Settle a parked repayment now instead of on its date.
  *
@@ -165,6 +234,17 @@ app.post("/repay", async (req, res) => {
   if (!parked) return res.status(404).json({ success: false, error: "No such parked repayment." });
   if (parked.status !== "live") {
     return res.status(409).json({ success: false, error: `Already ${parked.status}.` });
+  }
+  // Past its date, so consensus has already run it and dropped the schedule.
+  // Settling "early" here would transfer a second time and then find nothing to
+  // delete. Whether it paid or defaulted is the Mirror Node's answer, not this
+  // file's - reconcile is what closes the books on it.
+  if (!isStillParked(parked)) {
+    return res.status(409).json({
+      success: false,
+      error: "This repayment is past its date; consensus has already run it. Reconcile instead.",
+      dueAt: parked.dueAt,
+    });
   }
 
   try {

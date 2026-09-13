@@ -24,6 +24,7 @@ import { ExactHederaScheme } from "@x402/hedera/exact/client";
 import { NETWORK, agent, borrower, fromUnits, operator, optionalTopicId, parseKey, type Identity } from "../src/config";
 import { usdcBalance } from "../src/mirror";
 import { scheduleRepayment, type ScheduledRepayment } from "../src/scheduled";
+import { drawOnTranche, type Tranche } from "../src/tranche";
 import { append } from "../src/hcs";
 
 /** Repayment falls due this far after the drawdown. */
@@ -35,8 +36,23 @@ export type Receipt = {
   data: unknown;
   transactionId?: string;
   scheduledRepayment?: ScheduledRepayment;
+  /**
+   * The tranche this drawdown was charged to, when batching is on. The
+   * obligation still precedes the spending - it was parked when the tranche
+   * opened, which may have been a hundred payments ago.
+   */
+  tranche?: { scheduleId: string; ceilingUsd: number; drawnUsd: number; dueAt: string; parkedNow: boolean };
   trail?: { transactionId: string; sequenceNumber: string }[];
 };
+
+/**
+ * Whether to park one schedule per payment or draw on a tranche.
+ *
+ * Off by default so the per-payment path stays the demonstrated one, and
+ * because a tranche's ceiling is only right when someone has chosen it.
+ * FLOAT_TRANCHE_CEILING sizes it; see src/tranche.ts for the trade.
+ */
+const BATCHING = process.env.FLOAT_TRANCHE_BATCHING === "true";
 
 /**
  * The agent's per-payment ceiling.
@@ -119,6 +135,7 @@ export async function payForResource(
   console.log(`  agent has ${fromUnits(balance)} USDC -> ${canSelfFund ? "pays for itself" : "short, drawing on Float"}`);
 
   let scheduled: ScheduledRepayment | undefined;
+  let drawnTranche: Receipt["tranche"];
 
   if (!canSelfFund) {
     const priceUsd = Number(fromUnits(price));
@@ -136,14 +153,31 @@ export async function payForResource(
     // The borrower commits to repayment before Float is out of pocket.
     const who = borrower();
 
-    scheduled = await scheduleRepayment({
-      borrower: who,
-      amount: fromUnits(price),
-      dueInSeconds: TERM_SECONDS,
-      memo: `Float drawdown for ${new URL(url).pathname}`,
-    });
+    if (BATCHING) {
+      const { tranche: t, parkedNow } = await drawOnTranche({
+        amountUsd: Number(fromUnits(price)),
+        resource: url,
+        dueInSeconds: TERM_SECONDS,
+        borrower: who,
+      });
+      drawnTranche = { scheduleId: t.scheduleId, ceilingUsd: t.ceilingUsd, drawnUsd: t.drawnUsd, dueAt: t.dueAt, parkedNow };
+      scheduled = { scheduleId: t.scheduleId, transactionId: "", dueAt: t.dueAt, amount: fromUnits(price) };
 
-    console.log(`  scheduled repayment ${scheduled.scheduleId} due ${scheduled.dueAt}`);
+      console.log(
+        parkedNow
+          ? `  parked tranche ${t.scheduleId} ceiling ${t.ceilingUsd.toFixed(6)} due ${t.dueAt}`
+          : `  drew on tranche ${t.scheduleId}, ${t.drawnUsd.toFixed(6)}/${t.ceilingUsd.toFixed(6)} used - no new schedule`
+      );
+    } else {
+      scheduled = await scheduleRepayment({
+        borrower: who,
+        amount: fromUnits(price),
+        dueInSeconds: TERM_SECONDS,
+        memo: `Float drawdown for ${new URL(url).pathname}`,
+      });
+
+      console.log(`  scheduled repayment ${scheduled.scheduleId} due ${scheduled.dueAt}`);
+    }
 
     if (topic) {
       try {
@@ -205,6 +239,7 @@ export async function payForResource(
     data,
     transactionId,
     scheduledRepayment: scheduled,
+    tranche: drawnTranche,
     trail,
   };
 }
