@@ -29,15 +29,82 @@
   --flare: #a2541f;
   --red: #8e2f22;
 
+  /* The one hard shadow, and the modal scrim. Tokens because the Hedera rail
+     inverts the ground and a shadow made of ink disappears into it. */
+  --shadow: rgba(23, 21, 15, 0.14);
+  --scrim: rgba(23, 21, 15, 0.55);
+
+  /* What the rail switch is worth saying in words, set per rail below. */
+  --rail-name: "Arc";
+
   --d: "Instrument Serif", Georgia, "Times New Roman", serif;
   --u: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --m: "Martian Mono", ui-monospace, Menlo, "SF Mono", monospace;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The two rails, as two waters.
+
+   Arc and Hedera are different networks running different x402 services and
+   settling by different mechanisms, and the app looked identical on both - so
+   the only thing distinguishing them was a word in a toggle, which is not
+   enough for anyone watching rather than reading.
+
+   Not a light/dark toggle: both are the same Waterline design, held to the
+   same rules - zero radius, hairline rules, one hard shadow, the same three
+   typefaces. What changes is the water. Arc is the daylight harbour it always
+   was: warm paper, deep marine, a burnt accent. Hedera is the same harbour
+   after dark, because that rail's whole argument is about time passing while
+   nobody is watching - a repayment parked on consensus, executing on its date
+   with everyone asleep.
+
+   The neutrals stay on one hue per rail, as the original palette does: warm
+   ~90 for Arc, cool ~285 for Hedera, so nothing reads as a tint dropped on
+   top of the other theme.
+   ────────────────────────────────────────────────────────────────────────── */
+
+[data-rail="hedera"] {
+  color-scheme: dark;
+
+  --paper: #15131d;
+  --sunk: #1c1926;
+  --band: #262234;
+
+  --ink: #ece9f5;
+  --ink2: #a8a2c0;
+  --ink3: #767094;
+
+  --rule: #332e47;
+  --hair: #241f33;
+
+  /* Violet where Arc has marine. Hedera's own colour, pulled down into this
+     palette rather than used at brand strength. */
+  --sea: #7b68ee;
+  --sea-lift: #9b8cf5;
+  --flare: #e0924f;
+  --red: #ef6a54;
+
+  /* Ink-coloured shadow vanishes on a dark ground; this one is cast in black
+     and carries further, so the hard edge survives the inversion. */
+  --shadow: rgba(0, 0, 0, 0.55);
+  --scrim: rgba(8, 7, 12, 0.72);
+
+  --rail-name: "Hedera";
+  /* Dated, discrete obligations rather than a continuous flow. */
+  --rail-band-texture: repeating-linear-gradient(
+    90deg,
+    var(--paper) 0 2px,
+    transparent 2px 14px
+  );
 }
 
 html,
 body {
   background: var(--paper);
   color: var(--ink);
+  /* Slow enough to read as a change rather than a flicker, which is the whole
+     point of it on a screen recording. */
+  transition: background-color 0.45s ease, color 0.45s ease;
 }
 
 body {
@@ -118,9 +185,16 @@ body {
   }
 
   .rail {
-    height: 58px;
+    /* Auto, because the signature band sits above the row inside this header.
+       The row keeps the 58px it always had; the band adds its own 3px rather
+       than eating into it. */
     border-bottom: 1px solid var(--ink);
     background: var(--paper);
+    transition: background-color 0.45s ease;
+  }
+
+  .rail-row {
+    height: 58px;
   }
 
   .wordmark {
@@ -138,6 +212,84 @@ body {
   }
 
   /* ── controls ─────────────────────────────────────────────────────── */
+
+  /* ── The rail switch ──────────────────────────────────────────────────
+     Two stacked lines per segment: the network, and who settles there. The
+     second line is the one that does the work - it is how someone learns
+     there are two x402 services and not one app with a colour scheme. */
+  .rail-switch {
+    border: 1px solid var(--rule);
+    background: var(--sunk);
+  }
+
+  .rail-seg {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    padding: 5px 11px;
+    border: 0;
+    background: transparent;
+    color: var(--ink3);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.22s ease, color 0.22s ease;
+  }
+
+  .rail-seg + .rail-seg {
+    border-left: 1px solid var(--rule);
+  }
+
+  .rail-seg:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--band);
+  }
+
+  .rail-seg:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .rail-seg[data-on="true"] {
+    background: var(--sea);
+    color: var(--paper);
+  }
+
+  .rail-seg-name {
+    font-family: var(--u);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+  }
+
+  .rail-seg-sub {
+    font-family: var(--m);
+    font-size: 8.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.72;
+    line-height: 1.1;
+  }
+
+  /* ── Rail signature ───────────────────────────────────────────────────
+     A band across the top of the page in the rail's own colour. Small, but
+     it spans the full width and changes the instant the rail does, so a
+     switch is legible in a screen recording without reading anything. */
+  .rail-band {
+    height: 3px;
+    background: var(--sea);
+    transition: background-color 0.45s ease;
+  }
+
+  .rail-band::after {
+    content: "";
+    display: block;
+    height: 100%;
+    /* Arc batches, so its band is continuous. Hedera parks discrete dated
+       obligations, so its band is ticked - the mechanism, drawn. */
+    background: var(--rail-band-texture, none);
+  }
 
   .btn {
     display: inline-flex;
@@ -440,7 +592,7 @@ body {
     justify-content: center;
     padding: 24px;
     overflow-y: auto;
-    background: rgba(23, 21, 15, 0.55);
+    background: var(--scrim);
     backdrop-filter: blur(3px);
     animation: fade 0.14s ease;
   }
@@ -450,7 +602,7 @@ body {
     margin: auto;
     background: var(--paper);
     border: 1px solid var(--ink);
-    box-shadow: 14px 14px 0 rgba(23, 21, 15, 0.14);
+    box-shadow: 14px 14px 0 var(--shadow);
     animation: rise 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   }
 

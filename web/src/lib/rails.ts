@@ -19,3 +19,30 @@ export const RAIL_LABELS: Record<Rail, string> = {
   arc: "Arc",
   hedera: "Hedera",
 };
+
+/**
+ * What actually differs between the rails, in the fewest words that are still
+ * true.
+ *
+ * The switch used to be two buttons reading "Arc" and "Hedera", which tells
+ * someone watching nothing at all - not that these are separate networks, not
+ * that each has its own x402 service, not that the money moves by different
+ * means. The words matter more than the toggle.
+ */
+export const RAIL_FACTS: Record<
+  Rail,
+  { network: string; facilitator: string; mechanism: string; resource: string }
+> = {
+  arc: {
+    network: "Arc testnet",
+    facilitator: "Circle Gateway",
+    mechanism: "batched settlement",
+    resource: "Float Premium API",
+  },
+  hedera: {
+    network: "Hedera testnet",
+    facilitator: "Blocky402",
+    mechanism: "repayment parked on consensus",
+    resource: "Float Risk Feed",
+  },
+};

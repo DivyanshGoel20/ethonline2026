@@ -286,11 +286,21 @@ export const X402PayModal: React.FC<X402PayModalProps> = ({
       </div>
       )}
 
+      {rail === "arc" && (
+        <div className="note">
+          The <strong>Float Premium API</strong> on Arc testnet, settled over Circle Gateway.
+          Charges are batched rather than written one at a time, because a drawdown that costs
+          more to record than it lends is not a loan.
+        </div>
+      )}
+
       {rail === "hedera" && (
         <div className="note">
-          This rail pays from Float&rsquo;s Hedera identity and, when the agent is short,
-          parks a dated repayment on consensus before the money moves. Nobody has to be
-          online when it falls due.
+          A different service on a different network: the <strong>Float Risk Feed</strong> on
+          Hedera testnet, priced per record and settled through Blocky402 &mdash; not the Arc
+          endpoint. When the agent is short, the repayment is parked on consensus with a date
+          on it <em>before</em> the money moves, signed by the agent that owes it. Nobody has to
+          be online when it falls due.
         </div>
       )}
 

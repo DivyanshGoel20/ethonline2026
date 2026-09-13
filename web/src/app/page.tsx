@@ -129,6 +129,19 @@ export default function Dashboard() {
     localStorage.setItem("float_rail", next);
   };
 
+  /**
+   * The rail is stamped on the document, not threaded through components.
+   *
+   * Every colour in the app is already a token, so redefining the tokens under
+   * [data-rail="hedera"] re-themes the whole surface at once - the tank, the
+   * wave, the modals, the buttons - without a single component learning which
+   * rail it is on. Anything that hardcoded a colour would be the exception
+   * that broke it, which is why there are none left.
+   */
+  useEffect(() => {
+    document.documentElement.setAttribute("data-rail", rail);
+  }, [rail]);
+
   // The session cookie is httpOnly, so who we are is a question for the server.
   useEffect(() => {
     (async () => {
@@ -281,7 +294,7 @@ export default function Dashboard() {
           style={{
             background: "var(--paper)",
             border: "1px solid var(--ink)",
-            boxShadow: "8px 8px 0 rgba(23,21,15,0.14)",
+            boxShadow: "8px 8px 0 var(--shadow)",
           }}
         >
           <span style={{ width: 6, height: 6, background: "var(--sea)" }} />
