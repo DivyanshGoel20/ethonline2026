@@ -27,6 +27,7 @@
     "hedera:probe-default": "tsx --env-file=.env hedera/scripts/probe-default.ts",
     "hedera:reconcile": "tsx --env-file=.env hedera/scripts/reconcile.ts",
     "hedera:service": "tsx --env-file=.env hedera/service/server.ts",
+    "hedera:sign": "tsx --env-file=.env hedera/scripts/sign-schedule.ts",
     "hedera:setup": "tsx --env-file=.env hedera/scripts/setup.ts",
     "hedera:watch": "tsx --env-file=.env hedera/scripts/watch-schedule.ts",
     "hedera:lifecycle": "tsx --env-file=.env hedera/scripts/lifecycle.ts"

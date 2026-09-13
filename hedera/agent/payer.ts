@@ -48,11 +48,21 @@ export type Receipt = {
 /**
  * Whether to park one schedule per payment or draw on a tranche.
  *
- * Off by default so the per-payment path stays the demonstrated one, and
- * because a tranche's ceiling is only right when someone has chosen it.
- * FLOAT_TRANCHE_CEILING sizes it; see src/tranche.ts for the trade.
+ * On by default, on the numbers. A ScheduleCreate costs ~0.133 HBAR against a
+ * plain transfer's ~0.0146, so parking a repayment per payment costs about
+ * $0.045 all in - against a 0.005 USDC purchase that is 900% of the loan, the
+ * same failure Arc had when a drawdown cost more to record than it lent.
+ *
+ * A tranche amortises one schedule over many payments: ~$0.0005 each at a 0.50
+ * ceiling, ~$0.0001 at 2.00. The guarantee is unchanged - the borrower still
+ * commits before Float is out of pocket - it is simply committed once for the
+ * tranche rather than once per purchase.
+ *
+ * FLOAT_TRANCHE_BATCHING=false restores the per-payment path, which is worth
+ * having to show the difference. FLOAT_TRANCHE_CEILING sizes the tranche; see
+ * src/tranche.ts for what closing one costs and why it matters.
  */
-const BATCHING = process.env.FLOAT_TRANCHE_BATCHING === "true";
+const BATCHING = process.env.FLOAT_TRANCHE_BATCHING !== "false";
 
 /**
  * The agent's per-payment ceiling.
@@ -121,6 +131,17 @@ export async function payForResource(
      * caller has no agent wallet of its own.
      */
     borrower?: Identity;
+    /**
+     * Whether Float can sign for the borrower or has to wait for them.
+     *
+     * Decided by the caller, because only it knows whether a key is on file.
+     * "borrower" is the honest arrangement: Float proposes the obligation and
+     * the borrower accepts it from their own wallet, having never handed the
+     * key over.
+     */
+    custody?: "float" | "borrower";
+    /** Fires with the schedule id before any waiting, so it can be relayed. */
+    onScheduleCreated?: (scheduleId: string) => void | Promise<void>;
   }
 ): Promise<Receipt> {
   const buyer = agent();
@@ -167,6 +188,8 @@ export async function payForResource(
         resource: url,
         dueInSeconds: TERM_SECONDS,
         borrower: who,
+        custody: opts?.custody,
+        onCreated: opts?.onScheduleCreated,
       });
       drawnTranche = { scheduleId: t.scheduleId, ceilingUsd: t.ceilingUsd, drawnUsd: t.drawnUsd, dueAt: t.dueAt, parkedNow };
       scheduled = { scheduleId: t.scheduleId, transactionId: "", dueAt: t.dueAt, amount: fromUnits(price) };
@@ -182,6 +205,8 @@ export async function payForResource(
         amount: fromUnits(price),
         dueInSeconds: TERM_SECONDS,
         memo: `Float drawdown for ${new URL(url).pathname}`,
+        custody: opts?.custody,
+        onCreated: opts?.onScheduleCreated,
       });
 
       console.log(`  scheduled repayment ${scheduled.scheduleId} due ${scheduled.dueAt}`);
