@@ -54,8 +54,9 @@ contracts/lib/
 # Local index of parked Hedera repayments
 hedera/data/
 
-# Local runtime state, not source
+# Local runtime state, not source. The whole directory: these hold live ledger
+# rows keyed by World nullifier, which is a real person's identifier and not
+# something a public repository should carry.
 /data/
-web/data/pending-ledger.json
-web/data/rail-debt.json
+web/data/
 web/tsconfig.tsbuildinfo
