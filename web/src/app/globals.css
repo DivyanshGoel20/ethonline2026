@@ -18,8 +18,13 @@
   --band: #dfdacb;
 
   --ink: #17150f;
-  --ink2: #5b5648;
-  --ink3: #8e8877;
+  /* The muted steps were too light to read. --ink3 carries .lab and .faint at
+     9-10px and sat at 3.1:1, well under the 4.5:1 small text needs, so labels
+     and every secondary figure were guesswork on both rails. Three steps that
+     stay clearly apart - 16 : 8.3 : 4.7 - rather than a ladder whose bottom
+     rung was decorative. */
+  --ink2: #4a463a;
+  --ink3: #6f6a5b;
 
   --rule: #d5cfbf;
   --hair: #e4dfd1;
@@ -86,8 +91,8 @@
   /* Warm-grey rather than white. Arc's ink is not black and this should not be
      bleach - the pairing is what keeps both rails feeling like one product. */
   --ink: #e6e4de;
-  --ink2: #9d9aa4;
-  --ink3: #6d6b76;
+  --ink2: #b2aeb8;
+  --ink3: #8d8a97;
 
   --rule: #313340;
   --hair: #23252f;
@@ -296,7 +301,10 @@ body {
     font-size: 8.5px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    opacity: 0.72;
+    /* This is the line that says which service settles the payment, so it is
+       content rather than decoration and should not be dimmed on top of an
+       already-muted colour. */
+    opacity: 0.88;
     line-height: 1.1;
   }
 

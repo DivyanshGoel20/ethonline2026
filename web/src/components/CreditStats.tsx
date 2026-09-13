@@ -54,7 +54,10 @@ export const CreditStats: React.FC<CreditStatsProps> = ({ stats, facilityLimit =
             <Wave />
             <div
               className="absolute left-7 sm:left-10 bottom-4 flex items-baseline gap-3 transition-opacity duration-500"
-              style={{ color: "var(--paper)", opacity: deep ? 1 : 0 }}
+              // Sits inside the water, so it takes the on-sea colour rather than
+                // paper: paper is the page ground, which on a dark rail is
+                // near-black and vanished against the sea at 1.6:1.
+                style={{ color: "var(--on-sea)", opacity: deep ? 1 : 0 }}
             >
               <span
                 className="mn"
