@@ -55,6 +55,7 @@ contracts/lib/
 hedera/data/
 
 # Local runtime state, not source
+/data/
 web/data/pending-ledger.json
 web/data/rail-debt.json
 web/tsconfig.tsbuildinfo
