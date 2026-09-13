@@ -182,6 +182,49 @@ Two details that only show up when you build this:
   redirects `agent()` at runtime, so the funded demo wallet and the empty agent
   wallet coexist without either config knowing about the other.
 
+## Borrowing is opt-in
+
+An agent was handed this rail with no explanation, bought some data, and
+objected to what it found:
+
+> I did not pay. My wallet had nothing to pay with... There was no confirmation
+> step, no disclosed interest/fee terms, and no opt-out — the decision to incur
+> debt in your name was made by the tooling, not by me, and I only learned the
+> terms after the debt existed.
+
+It was right on every count, so the rail changed.
+
+- **A purchase never silently becomes a loan.** If the wallet cannot cover the
+  price, nothing is bought and no debt is taken on. The caller gets the price,
+  its balance, the shortfall and the full terms, and has to come back with
+  `allowCredit: true` (`--allow-credit`) to proceed.
+- **Terms are stated before the money moves,** not discovered afterwards, and
+  `float_terms` will recite them at any point, for free.
+- **Borrowing is bounded.** A call may borrow 0.50 USDC by default; more has to
+  be asked for by name with `maxCreditUsd`. Previously a single call could
+  borrow without limit, and `records=25` quietly borrowed five times what
+  `records=5` did.
+
+The terms themselves: principal only, **no fee and no interest**, seven-day term,
+and the borrower is the Float facility account rather than the agent's wallet.
+
+### What a default actually looks like
+
+The agent also asked what happens at maturity if the borrower cannot pay, which
+nobody had checked. So it was checked — an empty account, a 0.05 USDC repayment
+dated ninety seconds out, schedule [`0.0.10520758`](https://hashscan.io/testnet/schedule/0.0.10520758):
+
+```
+result       INSUFFICIENT_TOKEN_BALANCE
+scheduled    true
+token moves  0
+```
+
+Consensus ran it, the transfer moved nothing, and the schedule is still stamped
+executed. So a default is not an error anyone has to report — it is a schedule
+that ran and moved nothing, visible to anyone who looks. Nothing is seized and
+no penalty is charged. `npm run hedera:probe-default` reproduces it.
+
 ## Verified on testnet
 
 Not a dry run. Operator `0.0.7975935`, run on 12 September 2026.

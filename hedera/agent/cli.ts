@@ -12,6 +12,7 @@
 import { payForResource } from "./payer";
 import { agent, fromUnits, hashscanSchedule, hashscanTx } from "../src/config";
 import { usdcBalance } from "../src/mirror";
+import { DEFAULT_CREDIT_CAP_USDC, preflight, termsText } from "../src/terms";
 
 const FEED = process.env.FLOAT_FEED_URL || "http://localhost:4021";
 
@@ -38,14 +39,40 @@ async function main() {
     return;
   }
 
-  const url = arg("url") ?? `${FEED}/risk?records=${arg("records") ?? "1"}`;
-  const cap = arg("max-credit");
+  if (flag("terms")) {
+    console.log(termsText());
+    return;
+  }
 
-  const receipt = await payForResource(url, cap ? { maxCreditUsd: Number(cap) } : undefined);
+  const url = arg("url") ?? `${FEED}/risk?records=${arg("records") ?? "1"}`;
+  const cap = Number(arg("max-credit") ?? DEFAULT_CREDIT_CAP_USDC);
+
+  // Same consent gate the MCP tool applies: borrowing is opt-in, and bounded.
+  const pre = await preflight(url, me.id, cap);
+
+  if (pre?.needsCredit && !flag("allow-credit")) {
+    console.log(`\nNothing bought, no debt taken on.`);
+    console.log(`  price ${pre.priceUsdc} USDC, wallet ${pre.balanceUsdc} USDC, short ${pre.shortfallUsdc} USDC\n`);
+    console.log(termsText(pre.shortfallUsdc));
+    console.log(`\nRe-run with --allow-credit to accept these terms.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (pre?.needsCredit && !pre.withinCap) {
+    console.error(
+      `\ndeclined: borrowing ${pre.shortfallUsdc} USDC exceeds the ${cap} USDC cap.` +
+        `\nraise it with --max-credit if you mean to.`
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const receipt = await payForResource(url, { maxCreditUsd: cap });
 
   console.log(
     receipt.fundedBy === "float-credit"
-      ? `\npaid ${receipt.amount} USDC on Float credit (the wallet was short)`
+      ? `\npaid ${receipt.amount} USDC on Float credit (authorised with --allow-credit)`
       : `\npaid ${receipt.amount} USDC from the agent's own balance`
   );
   if (receipt.transactionId) console.log(`settlement ${hashscanTx(receipt.transactionId)}`);

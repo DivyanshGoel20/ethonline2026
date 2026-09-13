@@ -21,7 +21,8 @@
     "hedera:watch": "tsx --env-file=.env hedera/scripts/watch-schedule.ts",
     "hedera:payer": "tsx --env-file=.env hedera/service/payer-api.ts",
     "float:fetch": "tsx --env-file=.env hedera/agent/cli.ts",
-    "float:mcp": "tsx --env-file=.env hedera/mcp/server.ts"
+    "float:mcp": "tsx --env-file=.env hedera/mcp/server.ts",
+    "hedera:probe-default": "tsx --env-file=.env hedera/scripts/probe-default.ts"
   },
   "keywords": [
     "ai-agents",

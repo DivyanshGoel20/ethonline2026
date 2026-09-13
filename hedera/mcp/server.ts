@@ -39,6 +39,7 @@ import { z } from "zod";
 import { payForResource } from "../agent/payer";
 import { agent, fromUnits, hashscanAccount, hashscanSchedule, hashscanTx } from "../src/config";
 import { usdcBalance } from "../src/mirror";
+import { DEFAULT_CREDIT_CAP_USDC, preflight, termsText } from "../src/terms";
 
 const FEED = process.env.FLOAT_FEED_URL || "http://localhost:4021";
 
@@ -101,6 +102,18 @@ server.registerTool(
 );
 
 server.registerTool(
+  "float_terms",
+  {
+    title: "Read the credit terms before borrowing",
+    description:
+      "State what Float charges, how long a drawdown runs, how repayment is enforced, and what " +
+      "happens if the borrower cannot pay. Free, and safe to call before committing to anything.",
+    inputSchema: {},
+  },
+  async () => text(termsText()),
+);
+
+server.registerTool(
   "float_fetch",
   {
     title: "Buy data, on credit if needed",
@@ -113,18 +126,56 @@ server.registerTool(
         .describe("How many risk records to buy. Price scales with this."),
       url: z.string().optional()
         .describe("A specific x402 resource URL. Defaults to the risk feed."),
+      allowCredit: z.boolean().optional()
+        .describe(
+          "Permission to borrow. If your wallet cannot cover the price and this is not true, " +
+          "nothing is bought and no debt is taken on - you get the terms back instead."
+        ),
       maxCreditUsd: z.number().optional()
-        .describe("Cap on how much credit Float may extend for this call."),
+        .describe(`Most you will borrow on this call. Defaults to ${DEFAULT_CREDIT_CAP_USDC} USDC.`),
     },
   },
-  async ({ records, url, maxCreditUsd }) => {
+  async ({ records, url, allowCredit, maxCreditUsd }) => {
     const target = url ?? `${FEED}/risk?records=${records ?? 1}`;
-    const receipt = await payForResource(target, maxCreditUsd !== undefined ? { maxCreditUsd } : undefined);
+    const cap = maxCreditUsd ?? DEFAULT_CREDIT_CAP_USDC;
+
+    // Decide before spending, not after. An agent gets to see the price, its own
+    // balance, and the terms, and has to say yes to credit in so many words.
+    const pre = await preflight(target, agent().id, cap);
+
+    if (pre?.needsCredit && !allowCredit) {
+      return text(
+        [
+          `Nothing was bought and no debt was taken on.`,
+          ``,
+          `  price    ${pre.priceUsdc} USDC`,
+          `  wallet   ${pre.balanceUsdc} USDC`,
+          `  short by ${pre.shortfallUsdc} USDC`,
+          ``,
+          `Covering that shortfall means borrowing. Read the terms below, and if you`,
+          `accept them, call float_fetch again with allowCredit: true.`,
+          ``,
+          termsText(pre.shortfallUsdc),
+        ].join("\n")
+      );
+    }
+
+    if (pre?.needsCredit && !pre.withinCap) {
+      return text(
+        [
+          `Declined: this call would borrow ${pre.shortfallUsdc} USDC, over your ${cap} USDC cap.`,
+          ``,
+          `Buy fewer records, or raise maxCreditUsd deliberately if you mean to borrow more.`,
+        ].join("\n")
+      );
+    }
+
+    const receipt = await payForResource(target, { maxCreditUsd: cap });
 
     const lines = [
       receipt.fundedBy === "float-credit"
-        ? `Paid ${receipt.amount} USDC — the wallet was short, so Float covered it on credit.`
-        : `Paid ${receipt.amount} USDC from the agent's own balance.`,
+        ? `Paid ${receipt.amount} USDC — you authorised credit, so Float covered the shortfall.`
+        : `Paid ${receipt.amount} USDC from the agent's own balance. No credit was used.`,
     ];
 
     if (receipt.transactionId) lines.push(`  settlement  ${hashscanTx(receipt.transactionId)}`);
