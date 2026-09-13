@@ -65,9 +65,12 @@ server.registerTool(
         `balance  ${fromUnits(balance)} USDC`,
         `         ${hashscanAccount(me.id)}`,
         balance === 0n
-          ? `\nThis wallet is empty. Anything you buy will be funded by Float as credit,`
-          : `\nEnough for small purchases; larger ones draw on Float.`,
-        balance === 0n ? `and a dated repayment is parked on Hedera before the money moves.` : ``,
+          ? `\nThis wallet is empty, so it cannot fund a purchase on its own. Float can`
+          : `\nEnough for small purchases. Anything larger would need credit,`,
+        balance === 0n
+          ? `cover the shortfall as credit, but only if you ask for it - call float_terms`
+          : `which is offered rather than applied: call float_terms to read the terms`,
+        balance === 0n ? `to read the terms first. Nothing is borrowed until you agree.` : `before agreeing to any of it.`,
       ]
         .filter(Boolean)
         .join("\n")

@@ -13,7 +13,7 @@
  * So: terms are declared up front, borrowing is refused unless the caller asks
  * for it in so many words, and a call cannot exceed a cap it did not set.
  */
-import { NETWORK, fromUnits, toUnits } from "./config";
+import { NETWORK, agent, borrower, fromUnits, toUnits } from "./config";
 import { usdcBalance } from "./mirror";
 
 /** Interest and fees, in full. There are none - a drawdown repays its principal. */
@@ -43,6 +43,25 @@ const days = (s: number) => (s / 86400).toFixed(s % 86400 === 0 ? 0 : 2);
  */
 export function termsText(principalUsdc?: string): string {
   const principal = principalUsdc ? `${principalUsdc} USDC` : "the shortfall";
+
+  // Resolved, never assumed. An earlier version of this text asserted that the
+  // borrower was the Float facility account - which describes config's fallback,
+  // not this deployment, where HEDERA_BORROWER_ID names a third account
+  // entirely. An agent reading that disclosure would have had the counterparty
+  // wrong, which is the one thing a disclosure must never do.
+  let liable = "(not configured)";
+  let caller = "(unknown)";
+  try {
+    liable = borrower().id;
+  } catch {
+    /* terms are readable even when the rail is half-configured */
+  }
+  try {
+    caller = agent().id;
+  } catch {
+    /* same */
+  }
+
   return [
     `Float credit terms`,
     ``,
@@ -64,7 +83,14 @@ export function termsText(principalUsdc?: string): string {
     `  charged. The unpaid drawdown stays visible on the schedule and on the HCS`,
     `  trail, which is what a default looks like here - observable, not asserted.`,
     ``,
-    `The borrower is the configured Float facility account, not your agent wallet.`,
+    `Who is on the hook`,
+    `  The repayment is signed by and debited from ${liable}.`,
+    `  That is not your wallet (${caller}), and it may not be you at all.`,
+    `  In this deployment the borrower is a separate account whose key Float holds,`,
+    `  so authorising here commits an account other than your own. Float never sees`,
+    `  that key in a real deployment - the borrower signs for themselves, and the`,
+    `  party accepting these terms is the party that owes. Here they are not the`,
+    `  same, and you should weigh that before agreeing.`,
   ].join("\n");
 }
 

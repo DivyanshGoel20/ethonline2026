@@ -208,6 +208,32 @@ It was right on every count, so the rail changed.
 The terms themselves: principal only, **no fee and no interest**, seven-day term,
 and the borrower is the Float facility account rather than the agent's wallet.
 
+### Who is actually on the hook
+
+The fixed rail was handed back to a fresh agent, which verified every claim
+against the mirror node rather than the CLI's own output, and found the
+disclosure itself was wrong. It said the borrower was the Float facility
+account — true of `config.ts`'s fallback, false of this deployment, where
+`HEDERA_BORROWER_ID` names a third account distinct from both the agent wallet
+and the operator. An agent trusting that line would have had the counterparty
+wrong.
+
+The terms now resolve the borrower at runtime and name it, and say plainly that
+the party accepting is not the party that owes:
+
+```
+Who is on the hook
+  The repayment is signed by and debited from 0.0.10509545.
+  That is not your wallet (0.0.10520109), and it may not be you at all.
+```
+
+That gap is real and structural, not a wording problem. Here the borrower's key
+sits in `.env`, so an agent's `--allow-credit` binds an account that consented to
+nothing. In a real deployment the borrower signs for themselves and the two are
+the same party — which is what Hedera's scheduled transactions make possible, a
+single signature at drawdown rather than a standing allowance. Until then the
+disclosure says so out loud.
+
 ### What a default actually looks like
 
 The agent also asked what happens at maturity if the borrower cannot pay, which

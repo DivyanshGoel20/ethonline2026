@@ -35,7 +35,12 @@ async function main() {
     const balance = await usdcBalance(me.id);
     console.log(`account ${me.id}`);
     console.log(`balance ${fromUnits(balance)} USDC`);
-    if (balance === 0n) console.log(`empty - purchases will be funded by Float on credit`);
+    if (balance === 0n) {
+      console.log(`empty - it cannot fund a purchase on its own.`);
+      console.log(`Float can cover the shortfall as credit, but only if you ask:`);
+      console.log(`  --terms         read the terms`);
+      console.log(`  --allow-credit  accept them. Nothing is borrowed until you do.`);
+    }
     return;
   }
 
