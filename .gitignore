@@ -53,3 +53,8 @@ contracts/lib/
 
 # Local index of parked Hedera repayments
 hedera/data/
+
+# Local runtime state, not source
+web/data/pending-ledger.json
+web/data/rail-debt.json
+web/tsconfig.tsbuildinfo
