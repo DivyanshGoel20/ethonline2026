@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ARC_TREASURY } from "@/lib/browserChain";
 import { resolveSpender } from "@/lib/agentToken";
 import { invalidateTelemetryCache } from "@/lib/telemetryCache";
 import { flushAgent } from "@/lib/ledgerFlush";
@@ -11,7 +12,7 @@ import {
 } from "@/lib/agentStore";
 import { processRepayment, getLoansByAgent } from "@/lib/loanStore";
 import { ARC_TESTNET_CHAIN_ID, ARC_TESTNET_NAME, FLOAT_CREDIT_FACILITY_ADDRESS } from "@/lib/arc";
-import { executeOnChainRepayment } from "@/lib/facilityContract";
+import { executeOnChainRepayment, verifyArcRepayment } from "@/lib/facilityContract";
 
 export async function POST(req: NextRequest) {
   try {
@@ -118,6 +119,25 @@ export async function POST(req: NextRequest) {
     // 4. Real On-Chain Arc Testnet Settlement
     let arcTxHash = txHash;
     let transferTxHash: string | undefined = undefined;
+
+    // A hash from the browser is a claim, not a receipt. Taking it on trust
+    // meant the debt cleared on the strength of a string: a wallet left on
+    // another chain produced a real hash for a transfer that never arrived,
+    // and nothing stopped a caller posting arbitrary hex to the same end.
+    if (arcTxHash) {
+      const proof = await verifyArcRepayment({
+        txHash: arcTxHash as `0x${string}`,
+        expectedTo: ARC_TREASURY,
+        minAmountUsdc: effectiveRepayAmount,
+      });
+      if (!proof.ok) {
+        return NextResponse.json(
+          { success: false, error: proof.reason, code: "unverified_repayment" },
+          { status: 400 }
+        );
+      }
+    }
+
     if (!arcTxHash) {
       const onChainRepay = await executeOnChainRepayment({
         humanOwner: payingAgent.humanOwner,

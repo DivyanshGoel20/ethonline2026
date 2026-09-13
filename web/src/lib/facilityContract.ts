@@ -269,6 +269,62 @@ export function getArcTransport() {
   });
 }
 
+/**
+ * Confirms a repayment the browser says it made.
+ *
+ * The client used to hand up a transaction hash and the server recorded it,
+ * skipping its own settlement entirely - so the debt cleared on the strength of
+ * a string. A wallet left on another chain produced a perfectly real hash for a
+ * transfer Float never received, and any caller could have posted arbitrary hex
+ * to the same effect.
+ *
+ * Verified against Arc's own RPC, so a hash from another chain is simply not
+ * found. Amount and recipient are checked too: a confirmed transaction is not
+ * evidence of the right transaction.
+ */
+export async function verifyArcRepayment(params: {
+  txHash: `0x${string}`;
+  expectedTo: `0x${string}`;
+  minAmountUsdc: number;
+}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const client = getPublicClient();
+
+  let tx;
+  try {
+    tx = await client.getTransaction({ hash: params.txHash });
+  } catch {
+    return {
+      ok: false,
+      reason:
+        "That transaction is not on Arc. A wallet on another network produces a " +
+        "real hash for a transfer Float never receives.",
+    };
+  }
+  if (!tx) return { ok: false, reason: "No such transaction on Arc." };
+
+  try {
+    const receipt = await client.waitForTransactionReceipt({ hash: params.txHash, timeout: 30_000 });
+    if (receipt.status !== "success") return { ok: false, reason: "That transaction reverted." };
+  } catch {
+    return { ok: false, reason: "That transaction has not confirmed on Arc yet." };
+  }
+
+  if ((tx.to || "").toLowerCase() !== params.expectedTo.toLowerCase()) {
+    return { ok: false, reason: `That transaction paid ${tx.to}, not Float's treasury.` };
+  }
+
+  // Native USDC on Arc is 18-decimal, which is what the wallet sent.
+  const paid = Number(tx.value) / 1e18;
+  if (paid + 1e-9 < params.minAmountUsdc) {
+    return {
+      ok: false,
+      reason: `That transaction moved ${paid.toFixed(6)} USDC, less than the ${params.minAmountUsdc.toFixed(6)} claimed.`,
+    };
+  }
+
+  return { ok: true };
+}
+
 export function getPublicClient() {
   return createPublicClient({
     chain: arcTestnetChain,

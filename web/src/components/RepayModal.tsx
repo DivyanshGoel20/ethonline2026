@@ -4,9 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Agent } from "@/types";
 import { parseUnits } from "viem";
 import { Sheet, Field, Kv, Label, ErrorNote, usd, short } from "./ui";
-
-/** Facility operator treasury on Arc testnet. */
-const TREASURY = "0x5233E4253bC38e8CF517c0768dbC8aCC886F32B3";
+import { ensureArcNetwork, ARC_TREASURY } from "@/lib/browserChain";
 
 interface RepayModalProps {
   agent: Agent | null;
@@ -60,16 +58,27 @@ export const RepayModal: React.FC<RepayModalProps> = ({
       if (useBrowserWallet && typeof window !== "undefined" && (window as any).ethereum) {
         const ethereum = (window as any).ethereum;
         const [from] = await ethereum.request({ method: "eth_requestAccounts" });
+
+        // Before sending, not after. A wallet signs on whatever chain it is
+        // showing, and Float's treasury address exists on every EVM chain, so
+        // a repayment made from Base left real funds somewhere nothing here
+        // watches and still came back with a hash to record.
+        await ensureArcNetwork(ethereum);
+
         txHash = await ethereum.request({
           method: "eth_sendTransaction",
           params: [
             {
               from,
-              to: TREASURY,
+              to: ARC_TREASURY,
+              // Native, at 18 decimals: on Arc, USDC is the chain's own
+              // currency rather than a token contract.
               value: "0x" + parseUnits(value.toFixed(6), 18).toString(16),
             },
           ],
         });
+
+        if (!txHash) throw new Error("The wallet returned no transaction hash; nothing was sent.");
       }
 
       await onConfirmRepay(agent.address, Math.min(value, agent.outstandingDebt), txHash);
