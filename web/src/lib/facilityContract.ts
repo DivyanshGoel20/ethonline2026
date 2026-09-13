@@ -9,7 +9,7 @@ import {
   formatUnits,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { FLOAT_CREDIT_FACILITY_ADDRESS, ARC_TESTNET_CHAIN_ID } from "./arc";
+import { FLOAT_CREDIT_FACILITY_ADDRESS, ARC_TESTNET_CHAIN_ID, ARC_RPC_URL } from "./arc";
 import { getAgentPrivateKey, authorizeAgentSpend } from "./agentKeys";
 import { depositToAgentGateway } from "./disburse";
 import { refHash } from "./paymentRef";
@@ -20,7 +20,7 @@ export const arcTestnetChain = defineChain({
   nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
   rpcUrls: {
     default: {
-      http: [process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network"],
+      http: [ARC_RPC_URL],
     },
   },
   contracts: {
@@ -262,7 +262,7 @@ export function getArcTransport() {
     return fetch(input, init);
   };
 
-  return http(process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network", {
+  return http(ARC_RPC_URL, {
     fetchFn: customFetch,
     retryCount: 5,
     retryDelay: 1500,
@@ -969,7 +969,7 @@ export async function fetchCompleteContractTelemetry(
     network: {
       name: "Arc Testnet",
       chainId: ARC_TESTNET_CHAIN_ID,
-      rpcUrl: process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network",
+      rpcUrl: ARC_RPC_URL,
       latestBlock: Number(latestBlock),
     },
     contract: {

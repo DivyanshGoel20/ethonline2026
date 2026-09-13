@@ -2,6 +2,17 @@ import { isAddress } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 export const ARC_TESTNET_CHAIN_ID = 5042002;
+
+/**
+ * One definition, because there were two.
+ *
+ * Half the codebase fell back to https://rpc.arc.io/testnet and half to
+ * https://rpc.testnet.arc.network. Only the second answers - the first resolves
+ * and then returns nothing - so with ARC_RPC_URL unset, balance reads and
+ * wallet validation silently talked to a dead host while the contract calls
+ * worked. Two fallbacks for one chain is a bug waiting for an empty .env.
+ */
+export const ARC_RPC_URL = process.env.ARC_RPC_URL || "https://rpc.testnet.arc.network";
 export const ARC_TESTNET_NAME = "Arc Testnet";
 export const FLOAT_CREDIT_FACILITY_ADDRESS = (process.env.FLOAT_CREDIT_FACILITY_ADDRESS ||
   process.env.NEXT_PUBLIC_FLOAT_CREDIT_FACILITY_ADDRESS ||
@@ -26,7 +37,7 @@ export async function validateArcAgentWallet(
     };
   }
 
-  const rpcUrl = process.env.ARC_RPC_URL || "https://rpc.arc.io/testnet";
+  const rpcUrl = ARC_RPC_URL;
 
   try {
     const controller = new AbortController();
